@@ -5,7 +5,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from sten.audio import to_wav16k
-from sten.config import DATA_DIR
+from sten.config import DATA_DIR, OLLAMA_MODEL, WHISPER_MODEL
 from sten.items import SummaryItem
 from sten.summarize import summarize
 from sten.transcribe import Segment, transcribe, transcript_text
@@ -53,11 +53,11 @@ def run(audio_path: Path, out_dir: Path) -> None:
     print("1/3 Конвертация аудио...")
     wav = to_wav16k(audio_path, out_dir / "audio.wav")
 
-    print("2/3 Транскрипция (whisper medium)...")
+    print(f"2/3 Транскрипция (whisper {WHISPER_MODEL})...")
     segments = transcribe(wav)
     print(f"    сегментов: {len(segments)}, прошло {time.time() - t0:.0f} c")
 
-    print("3/3 Саммаризация (qwen2.5:7b)...")
+    print(f"3/3 Саммаризация ({OLLAMA_MODEL})...")
     items = summarize(segments)
 
     write_outputs(out_dir, segments, items)
