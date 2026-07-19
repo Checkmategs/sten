@@ -3,12 +3,14 @@ import httpx
 from sten.config import OLLAMA_MODEL, OLLAMA_URL
 
 
-def generate(prompt: str, *, schema: dict | None = None, model: str = OLLAMA_MODEL) -> str:
+def generate(
+    prompt: str, *, schema: dict | None = None, model: str = OLLAMA_MODEL, num_ctx: int = 8192
+) -> str:
     payload = {
         "model": model,
         "prompt": prompt,
         "stream": False,
-        "options": {"temperature": 0.2, "num_ctx": 8192},
+        "options": {"temperature": 0.2, "num_ctx": num_ctx},
     }
     if schema is not None:
         payload["format"] = schema

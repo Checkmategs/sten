@@ -27,9 +27,9 @@ def test_write_outputs_creates_all_files(tmp_path: Path):
     items = [SummaryItem("Поздоровались", "topic")]
     write_outputs(tmp_path, segments, items)
 
-    assert (tmp_path / "transcript.txt").read_text() == "Привет всем."
-    tj = json.loads((tmp_path / "transcript.json").read_text())
+    assert (tmp_path / "transcript.txt").read_text(encoding="utf-8") == "Привет всем."
+    tj = json.loads((tmp_path / "transcript.json").read_text(encoding="utf-8"))
     assert tj == [{"start": 0.0, "end": 1.5, "text": "Привет всем."}]
-    sj = json.loads((tmp_path / "summary.json").read_text())
+    sj = json.loads((tmp_path / "summary.json").read_text(encoding="utf-8"))
     assert sj == {"items": [{"text": "Поздоровались", "category": "topic"}]}
-    assert "Поздоровались" in (tmp_path / "summary.md").read_text()
+    assert "Поздоровались" in (tmp_path / "summary.md").read_text(encoding="utf-8")

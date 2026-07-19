@@ -25,6 +25,15 @@ _REDUCE_PROMPT = _ITEMS_INSTRUCTION + """
 
 {partials}"""
 
+_COMBINE_PROMPT = """Ниже — частичные саммари последовательных фрагментов одной встречи. Объедини их в одно связное саммари,
+сохранив все решения, задачи (кто/что/когда), темы и открытые вопросы. Не выдумывай ничего нового. Пиши по-русски.
+
+{partials}"""
+
+# Безопасный размер промпта для num_ctx=16384: кириллица ~2+ символа на токен,
+# плюс запас на инструкции и ответ модели.
+_REDUCE_BUDGET_CHARS = 20000
+
 _SINGLE_PROMPT = _ITEMS_INSTRUCTION + """
 
 Транскрипт встречи:
@@ -39,6 +48,28 @@ def summarize(segments: list[Segment]) -> list[SummaryItem]:
         raw = generate(_SINGLE_PROMPT.format(chunk=chunks[0]), schema=ITEMS_SCHEMA)
         return parse_items(raw)
     partials = [generate(_MAP_PROMPT.format(chunk=c)) for c in chunks]
+    while len("\n\n---\n\n".join(partials)) > _REDUCE_BUDGET_CHARS:
+        partials = [
+            generate(_COMBINE_PROMPT.format(partials=batch), num_ctx=16384)
+            for batch in _batch_partials(partials)
+        ]
     joined = "\n\n---\n\n".join(partials)
-    raw = generate(_REDUCE_PROMPT.format(partials=joined), schema=ITEMS_SCHEMA)
+    raw = generate(_REDUCE_PROMPT.format(partials=joined), schema=ITEMS_SCHEMA, num_ctx=16384)
     return parse_items(raw)
+
+
+def _batch_partials(partials: list[str]) -> list[str]:
+    """Жадно группирует последовательные частичные саммари в батчи,
+    чтобы объединённый текст каждого батча не превышал _REDUCE_BUDGET_CHARS.
+    Отдельное саммари больше бюджета образует собственный батч."""
+    sep = "\n\n---\n\n"
+    batches: list[str] = []
+    current: list[str] = []
+    for p in partials:
+        if current and len(sep.join([*current, p])) > _REDUCE_BUDGET_CHARS:
+            batches.append(sep.join(current))
+            current = []
+        current.append(p)
+    if current:
+        batches.append(sep.join(current))
+    return batches

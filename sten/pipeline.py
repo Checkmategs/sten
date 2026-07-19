@@ -34,14 +34,16 @@ def render_markdown(items: list[SummaryItem]) -> str:
 
 def write_outputs(out_dir: Path, segments: list[Segment], items: list[SummaryItem]) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "transcript.txt").write_text(transcript_text(segments))
+    (out_dir / "transcript.txt").write_text(transcript_text(segments), encoding="utf-8")
     (out_dir / "transcript.json").write_text(
-        json.dumps([asdict(s) for s in segments], ensure_ascii=False, indent=2)
+        json.dumps([asdict(s) for s in segments], ensure_ascii=False, indent=2),
+        encoding="utf-8",
     )
     (out_dir / "summary.json").write_text(
-        json.dumps({"items": [asdict(i) for i in items]}, ensure_ascii=False, indent=2)
+        json.dumps({"items": [asdict(i) for i in items]}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
     )
-    (out_dir / "summary.md").write_text(render_markdown(items))
+    (out_dir / "summary.md").write_text(render_markdown(items), encoding="utf-8")
 
 
 def run(audio_path: Path, out_dir: Path) -> None:
