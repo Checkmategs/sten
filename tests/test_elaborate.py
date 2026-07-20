@@ -21,7 +21,7 @@ def test_elaborate_calls_llm(monkeypatch):
     from sten import elaborate as el
 
     def fake(prompt, **kwargs):
-        assert "Дополни пункт" in prompt
+        assert "больше смысла из диалога" in prompt
         assert "виджет" in prompt
         return '  "Расширенный пункт про виджет."  '
 
