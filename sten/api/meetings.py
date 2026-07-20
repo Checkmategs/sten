@@ -7,8 +7,12 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from pathlib import Path
+
 from sten import db
 from sten.api.processing import Conflict, start_processing, start_resummarize
+from sten.config import DATA_DIR
+from sten.elaborate import elaborate_item, relevant_excerpt
 from sten.rewrite import rewrite_item
 
 router = APIRouter(prefix="/api")
@@ -132,3 +136,23 @@ def rewrite_meeting_item(meeting_id: int, item_id: int, body: RewriteBody) -> di
     updated = db.update_item_text(item_id, new_text)
     db.maybe_mark_consensus(meeting_id)
     return updated
+
+
+@router.post("/meetings/{meeting_id}/items/{item_id}/elaborate")
+def elaborate_meeting_item(meeting_id: int, item_id: int) -> dict:
+    """Дополнить пункт деталями из транскрипта встречи."""
+    _require_meeting(meeting_id)
+    item = _require_item(meeting_id, item_id)
+    transcript_path = Path(DATA_DIR) / "meetings" / str(meeting_id) / "transcript.txt"
+    transcript = (
+        transcript_path.read_text(encoding="utf-8") if transcript_path.exists() else ""
+    )
+    excerpt = relevant_excerpt(transcript, item["text"])
+    new_text = elaborate_item(
+        item["text"],
+        transcript_excerpt=excerpt,
+        theme=str(item.get("theme") or ""),
+    )
+    if not new_text.strip():
+        raise HTTPException(status_code=502, detail="LLM вернула пустой ответ")
+    return db.update_item_text(item_id, new_text)

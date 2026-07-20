@@ -19,6 +19,7 @@ export function ItemCard({
   const [draft, setDraft] = useState(item.text)
   const [objection, setObjection] = useState('')
   const [busy, setBusy] = useState(false)
+  const [elaborating, setElaborating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -56,6 +57,22 @@ export function ItemCard({
       setObjection('')
       setMode('view')
     })
+
+  const doElaborate = () =>
+    void (async () => {
+      setElaborating(true)
+      setBusy(true)
+      setError(null)
+      try {
+        await api.elaborateItem(meetingId, item.id)
+        onChanged()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setBusy(false)
+        setElaborating(false)
+      }
+    })()
 
   const startEdit = () => {
     setDraft(item.text)
@@ -143,6 +160,14 @@ export function ItemCard({
               type="button"
               className="item-btn"
               disabled={busy}
+              onClick={doElaborate}
+            >
+              {elaborating ? 'Уточняю…' : 'Уточнить'}
+            </button>
+            <button
+              type="button"
+              className="item-btn"
+              disabled={busy}
               onClick={startRewrite}
             >
               Переформулировать
@@ -151,14 +176,24 @@ export function ItemCard({
         ) : null}
 
         {mode === 'view' && item.status === 'accepted' ? (
-          <button
-            type="button"
-            className="item-btn"
-            disabled={busy}
-            onClick={reopen}
-          >
-            Вернуть в обсуждение
-          </button>
+          <>
+            <button
+              type="button"
+              className="item-btn"
+              disabled={busy}
+              onClick={doElaborate}
+            >
+              {elaborating ? 'Уточняю…' : 'Уточнить'}
+            </button>
+            <button
+              type="button"
+              className="item-btn"
+              disabled={busy}
+              onClick={reopen}
+            >
+              Вернуть в обсуждение
+            </button>
+          </>
         ) : null}
 
         {mode === 'edit' ? (

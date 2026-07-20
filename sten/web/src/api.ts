@@ -128,6 +128,12 @@ export const api = {
     })
   },
 
+  elaborateItem(meetingId: number, itemId: number): Promise<Item> {
+    return request(`/api/meetings/${meetingId}/items/${itemId}/elaborate`, {
+      method: 'POST',
+    })
+  },
+
   resummarize(id: number): Promise<StopMeetingResponse> {
     return request(`/api/meetings/${id}/resummarize`, { method: 'POST' })
   },
