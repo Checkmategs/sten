@@ -2,17 +2,19 @@ from sten.elaborate import elaborate_item, relevant_excerpt
 
 
 def test_relevant_excerpt_prefers_overlapping_lines():
+    filler = "Просто болтовня ни о чём. " * 40
     transcript = "\n".join(
         [
-            "Погода сегодня хорошая.",
+            filler,
             "Решили перенести запуск виджета на сентябрь.",
-            "Потом пили чай.",
+            filler,
             "Гоша сделает дизайн виджета к пятнице.",
+            filler,
         ]
     )
-    out = relevant_excerpt(transcript, "виджет запуск сентябрь", max_chars=200)
+    out = relevant_excerpt(transcript, "виджет запуск сентябрь", max_chars=400)
     assert "виджета" in out
-    assert "Погода" not in out
+    assert "болтовня" not in out
 
 
 def test_elaborate_calls_llm(monkeypatch):
