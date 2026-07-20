@@ -284,10 +284,17 @@ code {
   font-weight: 700;
 }
 
-.item-card-label {
-  display: block;
-  font-size: 1.05rem;
-  margin-bottom: 0.35rem;
+.item-card-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.item-btn-ai {
+  margin-left: auto;
+  border-color: #c4a8e8;
+  background: #f6f0ff;
+  color: #5b2d8e;
 }
 
 .item-card-textarea {

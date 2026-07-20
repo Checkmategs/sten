@@ -140,7 +140,7 @@ def rewrite_meeting_item(meeting_id: int, item_id: int, body: RewriteBody) -> di
 
 @router.post("/meetings/{meeting_id}/items/{item_id}/elaborate")
 def elaborate_meeting_item(meeting_id: int, item_id: int) -> dict:
-    """Дополнить пункт деталями из транскрипта встречи."""
+    """Предложить уточнённый текст пункта по транскрипту (без записи в БД)."""
     _require_meeting(meeting_id)
     item = _require_item(meeting_id, item_id)
     transcript_path = Path(DATA_DIR) / "meetings" / str(meeting_id) / "transcript.txt"
@@ -155,4 +155,12 @@ def elaborate_meeting_item(meeting_id: int, item_id: int) -> dict:
     )
     if not new_text.strip():
         raise HTTPException(status_code=502, detail="LLM вернула пустой ответ")
-    return db.update_item_text(item_id, new_text)
+    return {
+        "id": item["id"],
+        "meeting_id": meeting_id,
+        "text": new_text,
+        "category": item["category"],
+        "theme": item.get("theme", "Общее"),
+        "status": item["status"],
+        "position": item["position"],
+    }

@@ -8,18 +8,19 @@ interface ItemCardProps {
   onChanged: () => void
 }
 
-/** Single summary item with accept / edit / rewrite controls. */
+/** Single summary item with accept / edit / rewrite / elaborate controls. */
 export function ItemCard({
   meetingId,
   item,
   categoryLabel,
   onChanged,
 }: ItemCardProps) {
-  const [mode, setMode] = useState<'view' | 'edit' | 'rewrite'>('view')
+  const [mode, setMode] = useState<'view' | 'edit' | 'rewrite' | 'elaborate'>(
+    'view',
+  )
   const [draft, setDraft] = useState(item.text)
   const [objection, setObjection] = useState('')
   const [busy, setBusy] = useState(false)
-  const [elaborating, setElaborating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -58,22 +59,35 @@ export function ItemCard({
       setMode('view')
     })
 
-  const doElaborate = () =>
+  /** Ask LLM for a draft; user edits, then applies with PATCH. */
+  const startElaborate = () =>
     void (async () => {
-      setElaborating(true)
       setBusy(true)
       setError(null)
       try {
-        await api.elaborateItem(meetingId, item.id)
-        onChanged()
+        const suggestion = await api.elaborateItem(meetingId, item.id)
+        setDraft(suggestion.text)
+        setMode('elaborate')
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
       } finally {
         setBusy(false)
-        setElaborating(false)
       }
     })()
 
+  const applyElaborate = () =>
+    void run(async () => {
+      const text = draft.trim()
+      if (!text) throw new Error('Текст не может быть пустым')
+      await api.patchItem(meetingId, item.id, { text })
+      setMode('view')
+    })
+
+  const cancelElaborate = () => {
+    setDraft(item.text)
+    setMode('view')
+    setError(null)
+  }
   const startEdit = () => {
     setDraft(item.text)
     setMode('edit')
@@ -93,6 +107,8 @@ export function ItemCard({
     setError(null)
   }
 
+  const showElaborateBtn = mode === 'view'
+
   return (
     <article
       className={`item-card${item.status === 'accepted' ? ' item-card-accepted' : ''}`}
@@ -100,15 +116,24 @@ export function ItemCard({
       {categoryLabel ? (
         <span className="item-card-badge">{categoryLabel}</span>
       ) : null}
-      {mode === 'edit' ? (
-        <textarea
-          className="item-card-textarea"
-          value={draft}
-          disabled={busy}
-          onChange={(e) => setDraft(e.target.value)}
-          rows={3}
-          aria-label="Текст пункта"
-        />
+
+      {mode === 'edit' || mode === 'elaborate' ? (
+        <>
+          {mode === 'elaborate' ? (
+            <p className="item-card-hint">
+              Черновик от нейросети — поправьте, если что-то неверно, затем
+              «Применить».
+            </p>
+          ) : null}
+          <textarea
+            className="item-card-textarea"
+            value={draft}
+            disabled={busy}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={mode === 'elaborate' ? 5 : 3}
+            aria-label="Текст пункта"
+          />
+        </>
       ) : (
         <p className="item-card-text">
           {item.status === 'accepted' ? (
@@ -160,14 +185,6 @@ export function ItemCard({
               type="button"
               className="item-btn"
               disabled={busy}
-              onClick={doElaborate}
-            >
-              {elaborating ? 'Уточняю…' : 'Уточнить'}
-            </button>
-            <button
-              type="button"
-              className="item-btn"
-              disabled={busy}
               onClick={startRewrite}
             >
               Переформулировать
@@ -176,24 +193,14 @@ export function ItemCard({
         ) : null}
 
         {mode === 'view' && item.status === 'accepted' ? (
-          <>
-            <button
-              type="button"
-              className="item-btn"
-              disabled={busy}
-              onClick={doElaborate}
-            >
-              {elaborating ? 'Уточняю…' : 'Уточнить'}
-            </button>
-            <button
-              type="button"
-              className="item-btn"
-              disabled={busy}
-              onClick={reopen}
-            >
-              Вернуть в обсуждение
-            </button>
-          </>
+          <button
+            type="button"
+            className="item-btn"
+            disabled={busy}
+            onClick={reopen}
+          >
+            Вернуть в обсуждение
+          </button>
         ) : null}
 
         {mode === 'edit' ? (
@@ -236,6 +243,39 @@ export function ItemCard({
               Отмена
             </button>
           </>
+        ) : null}
+
+        {mode === 'elaborate' ? (
+          <>
+            <button
+              type="button"
+              className="item-btn item-btn-accept"
+              disabled={busy}
+              onClick={applyElaborate}
+            >
+              Применить
+            </button>
+            <button
+              type="button"
+              className="item-btn"
+              disabled={busy}
+              onClick={cancelElaborate}
+            >
+              Закрыть
+            </button>
+          </>
+        ) : null}
+
+        {showElaborateBtn ? (
+          <button
+            type="button"
+            className="item-btn item-btn-ai"
+            disabled={busy}
+            onClick={startElaborate}
+            title="Уточнить по транскрипту"
+          >
+            {busy ? 'Уточняю…' : '✦ Уточнить'}
+          </button>
         ) : null}
       </div>
 
