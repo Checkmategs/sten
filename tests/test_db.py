@@ -52,3 +52,15 @@ def test_all_accepted_marks_consensus(isolated_db):
     # helper used by API later — test it here if implemented in db
     db.maybe_mark_consensus(mid)
     assert db.get_meeting(mid)["status"] == "consensus"
+
+
+def test_reopen_item_returns_meeting_to_ready(isolated_db):
+    mid = db.create_meeting("A")
+    db.replace_items(mid, [("A", "topic")])
+    item = db.list_items(mid)[0]
+    db.set_item_status(item["id"], "accepted")
+    db.maybe_mark_consensus(mid)
+    assert db.get_meeting(mid)["status"] == "consensus"
+
+    db.set_item_status(item["id"], "pending")
+    assert db.get_meeting(mid)["status"] == "ready"

@@ -118,6 +118,16 @@ def set_item_status(item_id: int, status: str) -> dict:
             "SELECT id, meeting_id, text, category, status, position FROM items WHERE id = ?",
             (item_id,),
         ).fetchone()
+        if status == "pending":
+            meeting = conn.execute(
+                "SELECT status FROM meetings WHERE id = ?",
+                (row["meeting_id"],),
+            ).fetchone()
+            if meeting and meeting["status"] == "consensus":
+                conn.execute(
+                    "UPDATE meetings SET status = 'ready' WHERE id = ?",
+                    (row["meeting_id"],),
+                )
         return dict(row)
 
 

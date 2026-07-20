@@ -69,8 +69,7 @@ export function ConsensusPage() {
   const accepted = meeting.counts.accepted ?? 0
   const pending = meeting.counts.pending ?? 0
   const total = accepted + pending
-  const allAccepted =
-    meeting.status === 'consensus' || (total > 0 && pending === 0)
+  const allAccepted = total > 0 && pending === 0
   const groups = groupItems(meeting.items)
 
   return (
