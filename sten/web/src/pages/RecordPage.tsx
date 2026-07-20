@@ -61,6 +61,15 @@ export function RecordPage() {
           {phase === 'recording' && 'Идёт запись'}
           {phase === 'stopping' && 'Остановка…'}
         </p>
+        {isRecording && level < 0.02 ? (
+          <p className="record-hint" role="status">
+            Уровень почти нулевой — проверьте микрофон (полоска выше должна
+            прыгать, когда говорите).
+          </p>
+        ) : null}
+        {isRecording && elapsedMs < 15_000 ? (
+          <p className="record-hint">Запишите хотя бы 15–20 секунд с речью.</p>
+        ) : null}
       </div>
 
       <div className="record-actions">
@@ -77,8 +86,11 @@ export function RecordPage() {
           <button
             type="button"
             className="record-btn record-btn-stop"
-            disabled={stopDisabled}
+            disabled={stopDisabled || elapsedMs < 5000}
             onClick={() => void handleStop()}
+            title={
+              elapsedMs < 5000 ? 'Подождите хотя бы 5 секунд' : undefined
+            }
           >
             Стоп
           </button>

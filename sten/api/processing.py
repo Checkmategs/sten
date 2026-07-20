@@ -33,6 +33,23 @@ def start_processing(meeting_id: int) -> None:
     thread.start()
 
 
+def load_items_from_output(out_dir: Path) -> list[tuple[str, str]]:
+    """Read summary.json; raise RuntimeError if transcript or items are empty."""
+    summary = json.loads((out_dir / "summary.json").read_text(encoding="utf-8"))
+    items = [(item["text"], item["category"]) for item in summary.get("items", [])]
+    transcript = (out_dir / "transcript.txt").read_text(encoding="utf-8").strip()
+    if not transcript:
+        raise RuntimeError(
+            "В записи не распознана речь. Проверьте, что выбран нужный микрофон "
+            "и на записи есть голос (хотя бы 20–30 секунд разговора)."
+        )
+    if not items:
+        raise RuntimeError(
+            "Речь распознана, но пункты саммари пустые. Попробуйте записать дольше."
+        )
+    return items
+
+
 def _process_meeting(meeting_id: int) -> None:
     global _busy_meeting_id
     try:
@@ -40,8 +57,7 @@ def _process_meeting(meeting_id: int) -> None:
         out_dir = Path(db.DATA_DIR) / "meetings" / str(meeting_id)
         audio_path = out_dir / "audio.webm"
         pipeline.run(audio_path, out_dir)
-        summary = json.loads((out_dir / "summary.json").read_text(encoding="utf-8"))
-        items = [(item["text"], item["category"]) for item in summary["items"]]
+        items = load_items_from_output(out_dir)
         db.replace_items(meeting_id, items)
         db.set_meeting_status(meeting_id, "ready")
     except Exception as exc:

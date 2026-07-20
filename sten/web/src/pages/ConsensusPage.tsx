@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { api, type Item, type MeetingDetail } from '../api'
 import { ItemCard } from '../components/ItemCard'
 
@@ -94,7 +94,16 @@ export function ConsensusPage() {
       ) : null}
 
       {groups.length === 0 ? (
-        <p className="consensus-empty">Нет пунктов для согласования.</p>
+        <div className="consensus-empty">
+          <p>Нет пунктов для согласования.</p>
+          <p>
+            Обычно так бывает, если в записи не было речи или выбран не тот
+            микрофон. Запишите ещё раз подольше — с голосом в кадре.
+          </p>
+          <p>
+            <Link to="/">Новая запись</Link>
+          </p>
+        </div>
       ) : (
         groups.map((group) => (
           <section key={group.title} className="consensus-section">
