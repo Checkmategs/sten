@@ -1,38 +1,95 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { api } from '../api'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  defaultMeetingTitle,
+  formatElapsed,
+  useRecorder,
+} from '../useRecorder'
 
-/** Stub — full recording UI in Task 5. */
+/** Recording screen for the facilitator: title, start/stop, level meter, timer. */
 export function RecordPage() {
-  const [health, setHealth] = useState<string>('…')
+  const navigate = useNavigate()
+  const [title, setTitle] = useState(() => defaultMeetingTitle())
+  const { phase, elapsedMs, level, error, start, stop, isRecording, isBusy } =
+    useRecorder()
 
-  useEffect(() => {
-    let cancelled = false
-    api
-      .health()
-      .then((r) => {
-        if (!cancelled) setHealth(r.ok ? 'ok' : 'not ok')
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setHealth(err instanceof Error ? err.message : String(err))
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const handleStart = () => {
+    const trimmed = title.trim() || defaultMeetingTitle()
+    if (!title.trim()) setTitle(trimmed)
+    void start(trimmed)
+  }
+
+  const handleStop = async () => {
+    const id = await stop()
+    if (id != null) navigate(`/m/${id}/process`)
+  }
+
+  const titleDisabled = phase !== 'idle'
+  const startDisabled = phase !== 'idle' || isBusy
+  const stopDisabled = !isRecording
 
   return (
-    <main>
-      <h1>Record</h1>
-      <p>Recording UI — coming in Task 5.</p>
-      <p>
-        API health: <code>{health}</code>
-      </p>
-      <p>
-        <Link to="/m/1/process">Process stub</Link>
-        {' · '}
-        <Link to="/m/1/consensus">Consensus stub</Link>
-      </p>
+    <main className="record-page">
+      <h1>Запись встречи</h1>
+
+      <label className="record-title-label" htmlFor="meeting-title">
+        Название
+      </label>
+      <input
+        id="meeting-title"
+        className="record-title-input"
+        type="text"
+        value={title}
+        disabled={titleDisabled}
+        onChange={(e) => setTitle(e.target.value)}
+        autoComplete="off"
+      />
+
+      <div className="record-status" aria-live="polite">
+        <div className="record-timer" aria-label="Длительность записи">
+          {formatElapsed(elapsedMs)}
+        </div>
+        <div className="record-level" aria-label="Уровень микрофона">
+          <div
+            className="record-level-fill"
+            style={{ width: `${Math.min(100, Math.round(level * 100))}%` }}
+          />
+        </div>
+        <p className="record-phase">
+          {phase === 'idle' && 'Готово к записи'}
+          {phase === 'starting' && 'Запуск…'}
+          {phase === 'recording' && 'Идёт запись'}
+          {phase === 'stopping' && 'Остановка…'}
+        </p>
+      </div>
+
+      <div className="record-actions">
+        {!isRecording && phase !== 'stopping' ? (
+          <button
+            type="button"
+            className="record-btn record-btn-start"
+            disabled={startDisabled}
+            onClick={handleStart}
+          >
+            Начать запись
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="record-btn record-btn-stop"
+            disabled={stopDisabled}
+            onClick={() => void handleStop()}
+          >
+            Стоп
+          </button>
+        )}
+      </div>
+
+      {error ? (
+        <p className="record-error" role="alert">
+          {error}
+        </p>
+      ) : null}
     </main>
   )
 }

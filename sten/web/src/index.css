@@ -18,3 +18,98 @@ main {
 code {
   font-family: ui-monospace, monospace;
 }
+
+.record-page h1 {
+  font-size: 1.75rem;
+  margin: 0 0 1.25rem;
+}
+
+.record-title-label {
+  display: block;
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+}
+
+.record-title-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 1.15rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+}
+
+.record-title-input:disabled {
+  background: #f0f0f0;
+  color: #555;
+}
+
+.record-status {
+  margin-bottom: 1.5rem;
+}
+
+.record-timer {
+  font-size: 2.5rem;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.75rem;
+}
+
+.record-level {
+  height: 0.85rem;
+  background: #e5e5e5;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.record-level-fill {
+  height: 100%;
+  background: #2a7a4b;
+  transition: width 50ms linear;
+}
+
+.record-phase {
+  margin: 0;
+  color: #555;
+  font-size: 1rem;
+}
+
+.record-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.record-btn {
+  font-size: 1.2rem;
+  padding: 0.85rem 1.4rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.record-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.record-btn-start {
+  background: #1a5f9e;
+  color: #fff;
+}
+
+.record-btn-stop {
+  background: #b33a3a;
+  color: #fff;
+}
+
+.record-error {
+  margin-top: 1.25rem;
+  color: #8b1a1a;
+  background: #fdeaea;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+}
