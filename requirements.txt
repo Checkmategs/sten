@@ -1,3 +1,6 @@
 faster-whisper
 httpx
 pytest
+fastapi
+uvicorn
+python-multipart
