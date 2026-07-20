@@ -35,6 +35,8 @@ def test_load_items_ok(tmp_path: Path):
     _write_out(
         out,
         transcript="Решили X",
-        items=[{"text": "Решили X", "category": "decision"}],
+        items=[{"text": "Решили X", "category": "decision", "theme": "Релиз"}],
     )
-    assert processing.load_items_from_output(out) == [("Решили X", "decision")]
+    assert processing.load_items_from_output(out) == [
+        ("Решили X", "decision", "Релиз")
+    ]

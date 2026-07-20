@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from sten import db
-from sten.api.processing import Conflict, start_processing
+from sten.api.processing import Conflict, start_processing, start_resummarize
 from sten.rewrite import rewrite_item
 
 router = APIRouter(prefix="/api")
@@ -92,6 +92,20 @@ def meeting_status(meeting_id: int) -> dict:
         "error": meeting["error"],
         "counts": db.count_item_statuses(meeting_id),
     }
+
+
+@router.post("/meetings/{meeting_id}/resummarize")
+def resummarize_meeting(meeting_id: int) -> dict:
+    """Пересобрать саммари из уже готового транскрипта (без повторного Whisper)."""
+    _require_meeting(meeting_id)
+    try:
+        start_resummarize(meeting_id)
+    except Conflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    db.set_meeting_status(meeting_id, "processing")
+    meeting = db.get_meeting(meeting_id)
+    assert meeting is not None
+    return {"id": meeting["id"], "status": meeting["status"]}
 
 
 @router.patch("/meetings/{meeting_id}/items/{item_id}")

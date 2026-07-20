@@ -4,9 +4,13 @@ from sten.items import SummaryItem, parse_items
 
 
 def test_parses_valid_items():
-    raw = '{"items": [{"text": "Запуск в сентябре", "category": "decision"}]}'
-    assert parse_items(raw) == [SummaryItem("Запуск в сентябре", "decision")]
+    raw = '{"items": [{"text": "Запуск в сентябре", "category": "decision", "theme": "Релиз"}]}'
+    assert parse_items(raw) == [SummaryItem("Запуск в сентябре", "decision", "Релиз")]
 
+
+def test_missing_theme_defaults():
+    raw = '{"items": [{"text": "Что-то", "category": "task"}]}'
+    assert parse_items(raw)[0].theme == "Общее"
 
 def test_unknown_category_becomes_topic():
     raw = '{"items": [{"text": "Что-то", "category": "жалоба"}]}'

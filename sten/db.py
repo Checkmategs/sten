@@ -29,11 +29,19 @@ def init_db() -> None:
               meeting_id INTEGER NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
               text TEXT NOT NULL,
               category TEXT NOT NULL,
+              theme TEXT NOT NULL DEFAULT 'Общее',
               status TEXT NOT NULL,
               position INTEGER NOT NULL
             );
             """
         )
+        cols = {
+            row[1] for row in conn.execute("PRAGMA table_info(items)").fetchall()
+        }
+        if "theme" not in cols:
+            conn.execute(
+                "ALTER TABLE items ADD COLUMN theme TEXT NOT NULL DEFAULT 'Общее'"
+            )
 
 
 def create_meeting(title: str) -> int:
@@ -82,20 +90,23 @@ def append_audio_chunk(meeting_id: int, data: bytes) -> Path:
     return path
 
 
-def replace_items(meeting_id: int, items: list[tuple[str, str]]) -> None:
+def replace_items(meeting_id: int, items: list[tuple[str, str, str]]) -> None:
+    """items: list of (text, category, theme)."""
     with _connect() as conn:
         conn.execute("DELETE FROM items WHERE meeting_id = ?", (meeting_id,))
-        for position, (text, category) in enumerate(items):
+        for position, (text, category, theme) in enumerate(items):
             conn.execute(
-                "INSERT INTO items (meeting_id, text, category, status, position) VALUES (?, ?, ?, 'pending', ?)",
-                (meeting_id, text, category, position),
+                "INSERT INTO items (meeting_id, text, category, theme, status, position) "
+                "VALUES (?, ?, ?, ?, 'pending', ?)",
+                (meeting_id, text, category, theme or "Общее", position),
             )
 
 
 def list_items(meeting_id: int) -> list[dict]:
     with _connect() as conn:
         rows = conn.execute(
-            "SELECT id, meeting_id, text, category, status, position FROM items WHERE meeting_id = ? ORDER BY position",
+            "SELECT id, meeting_id, text, category, theme, status, position "
+            "FROM items WHERE meeting_id = ? ORDER BY position",
             (meeting_id,),
         ).fetchall()
         return [dict(r) for r in rows]
@@ -105,7 +116,8 @@ def update_item_text(item_id: int, text: str) -> dict:
     with _connect() as conn:
         conn.execute("UPDATE items SET text = ? WHERE id = ?", (text, item_id))
         row = conn.execute(
-            "SELECT id, meeting_id, text, category, status, position FROM items WHERE id = ?",
+            "SELECT id, meeting_id, text, category, theme, status, position "
+            "FROM items WHERE id = ?",
             (item_id,),
         ).fetchone()
         return dict(row)
@@ -115,7 +127,8 @@ def set_item_status(item_id: int, status: str) -> dict:
     with _connect() as conn:
         conn.execute("UPDATE items SET status = ? WHERE id = ?", (status, item_id))
         row = conn.execute(
-            "SELECT id, meeting_id, text, category, status, position FROM items WHERE id = ?",
+            "SELECT id, meeting_id, text, category, theme, status, position "
+            "FROM items WHERE id = ?",
             (item_id,),
         ).fetchone()
         if status == "pending":

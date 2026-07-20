@@ -4,11 +4,17 @@ import { api, type Item } from '../api'
 interface ItemCardProps {
   meetingId: number
   item: Item
+  categoryLabel?: string
   onChanged: () => void
 }
 
 /** Single summary item with accept / edit / rewrite controls. */
-export function ItemCard({ meetingId, item, onChanged }: ItemCardProps) {
+export function ItemCard({
+  meetingId,
+  item,
+  categoryLabel,
+  onChanged,
+}: ItemCardProps) {
   const [mode, setMode] = useState<'view' | 'edit' | 'rewrite'>('view')
   const [draft, setDraft] = useState(item.text)
   const [objection, setObjection] = useState('')
@@ -74,6 +80,9 @@ export function ItemCard({ meetingId, item, onChanged }: ItemCardProps) {
     <article
       className={`item-card${item.status === 'accepted' ? ' item-card-accepted' : ''}`}
     >
+      {categoryLabel ? (
+        <span className="item-card-badge">{categoryLabel}</span>
+      ) : null}
       {mode === 'edit' ? (
         <textarea
           className="item-card-textarea"

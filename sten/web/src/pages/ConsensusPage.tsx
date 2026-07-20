@@ -1,34 +1,38 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, type Item, type MeetingDetail } from '../api'
 import { ItemCard } from '../components/ItemCard'
 
-const CATEGORY_ORDER: { key: string; title: string }[] = [
-  { key: 'decision', title: 'Решения' },
-  { key: 'task', title: 'Задачи' },
-  { key: 'topic', title: 'Темы' },
-  { key: 'question', title: 'Открытые вопросы' },
-]
+const CATEGORY_LABELS: Record<string, string> = {
+  decision: 'Решение',
+  task: 'Задача',
+  topic: 'Контекст',
+  question: 'Открытый вопрос',
+}
 
-function groupItems(items: Item[]): { title: string; items: Item[] }[] {
-  const groups: { title: string; items: Item[] }[] = []
-  for (const { key, title } of CATEGORY_ORDER) {
-    const matching = items.filter((i) => i.category === key)
-    if (matching.length > 0) groups.push({ title, items: matching })
+function groupByTheme(items: Item[]): { title: string; items: Item[] }[] {
+  const order: string[] = []
+  const map = new Map<string, Item[]>()
+  for (const item of items) {
+    const theme = item.theme?.trim() || 'Общее'
+    if (!map.has(theme)) {
+      map.set(theme, [])
+      order.push(theme)
+    }
+    map.get(theme)!.push(item)
   }
-  const known = new Set(CATEGORY_ORDER.map((c) => c.key))
-  const other = items.filter((i) => !known.has(i.category))
-  if (other.length > 0) groups.push({ title: 'Прочее', items: other })
-  return groups
+  return order.map((title) => ({ title, items: map.get(title)! }))
 }
 
 /** Live consensus screen for TV: accept, edit, rewrite summary items. */
 export function ConsensusPage() {
   const { id } = useParams<{ id: string }>()
   const meetingId = Number(id)
+  const navigate = useNavigate()
 
   const [meeting, setMeeting] = useState<MeetingDetail | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [resummarizing, setResummarizing] = useState(false)
 
   const load = useCallback(async () => {
     if (!Number.isFinite(meetingId) || meetingId <= 0) {
@@ -47,6 +51,18 @@ export function ConsensusPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const handleResummarize = async () => {
+    setResummarizing(true)
+    setLoadError(null)
+    try {
+      await api.resummarize(meetingId)
+      navigate(`/m/${meetingId}/process`, { replace: true })
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : String(err))
+      setResummarizing(false)
+    }
+  }
 
   if (loadError && !meeting) {
     return (
@@ -70,7 +86,7 @@ export function ConsensusPage() {
   const pending = meeting.counts.pending ?? 0
   const total = accepted + pending
   const allAccepted = total > 0 && pending === 0
-  const groups = groupItems(meeting.items)
+  const groups = groupByTheme(meeting.items)
 
   return (
     <main className="consensus-page">
@@ -78,6 +94,16 @@ export function ConsensusPage() {
         <h1>{meeting.title}</h1>
         <p className="consensus-progress" aria-live="polite">
           Принято {accepted} из {total}
+        </p>
+        <p className="consensus-actions">
+          <button
+            type="button"
+            className="consensus-btn-secondary"
+            disabled={resummarizing}
+            onClick={() => void handleResummarize()}
+          >
+            {resummarizing ? 'Пересборка…' : 'Пересобрать выводы'}
+          </button>
         </p>
       </header>
 
@@ -114,6 +140,9 @@ export function ConsensusPage() {
                   <ItemCard
                     meetingId={meetingId}
                     item={item}
+                    categoryLabel={
+                      CATEGORY_LABELS[item.category] ?? item.category
+                    }
                     onChanged={() => void load()}
                   />
                 </li>

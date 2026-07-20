@@ -30,7 +30,7 @@ def test_append_audio_chunk_creates_file(isolated_db):
 
 def test_replace_and_list_items(isolated_db):
     mid = db.create_meeting("A")
-    db.replace_items(mid, [("Решили X", "decision"), ("Сделать Y", "task")])
+    db.replace_items(mid, [("Решили X", "decision", "Общее"), ("Сделать Y", "task", "Общее")])
     items = db.list_items(mid)
     assert [i["text"] for i in items] == ["Решили X", "Сделать Y"]
     assert all(i["status"] == "pending" for i in items)
@@ -38,7 +38,7 @@ def test_replace_and_list_items(isolated_db):
 
 def test_accept_item_and_counts(isolated_db):
     mid = db.create_meeting("A")
-    db.replace_items(mid, [("A", "topic"), ("B", "topic")])
+    db.replace_items(mid, [("A", "topic", "Общее"), ("B", "topic", "Общее")])
     items = db.list_items(mid)
     db.set_item_status(items[0]["id"], "accepted")
     assert db.count_item_statuses(mid) == {"pending": 1, "accepted": 1}
@@ -46,7 +46,7 @@ def test_accept_item_and_counts(isolated_db):
 
 def test_all_accepted_marks_consensus(isolated_db):
     mid = db.create_meeting("A")
-    db.replace_items(mid, [("A", "topic")])
+    db.replace_items(mid, [("A", "topic", "Общее")])
     item = db.list_items(mid)[0]
     db.set_item_status(item["id"], "accepted")
     # helper used by API later — test it here if implemented in db
@@ -56,7 +56,7 @@ def test_all_accepted_marks_consensus(isolated_db):
 
 def test_reopen_item_returns_meeting_to_ready(isolated_db):
     mid = db.create_meeting("A")
-    db.replace_items(mid, [("A", "topic")])
+    db.replace_items(mid, [("A", "topic", "Общее")])
     item = db.list_items(mid)[0]
     db.set_item_status(item["id"], "accepted")
     db.maybe_mark_consensus(mid)

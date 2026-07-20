@@ -6,28 +6,31 @@ from pathlib import Path
 
 from sten.audio import to_wav16k
 from sten.config import DATA_DIR, OLLAMA_MODEL, WHISPER_MODEL
-from sten.items import SummaryItem
+from sten.items import SummaryItem, category_label
 from sten.summarize import summarize
 from sten.transcribe import Segment, transcribe, transcript_text
 
-_CATEGORY_TITLES = [
-    ("decision", "Решения"),
-    ("task", "Задачи"),
-    ("topic", "Темы"),
-    ("question", "Открытые вопросы"),
-]
+_CATEGORY_ORDER = ("decision", "task", "topic", "question")
 
 
 def render_markdown(items: list[SummaryItem]) -> str:
     if not items:
         return "# Саммари встречи\n\nНет пунктов.\n"
     lines = ["# Саммари встречи", ""]
-    for category, title in _CATEGORY_TITLES:
-        matching = [i for i in items if i.category == category]
-        if not matching:
-            continue
-        lines.append(f"## {title}")
-        lines.extend(f"- {i.text}" for i in matching)
+    themes: list[str] = []
+    for item in items:
+        if item.theme not in themes:
+            themes.append(item.theme)
+    for theme in themes:
+        lines.append(f"## {theme}")
+        lines.append("")
+        theme_items = [i for i in items if i.theme == theme]
+        for category in _CATEGORY_ORDER:
+            matching = [i for i in theme_items if i.category == category]
+            if not matching:
+                continue
+            for i in matching:
+                lines.append(f"- **{category_label(category)}:** {i.text}")
         lines.append("")
     return "\n".join(lines)
 

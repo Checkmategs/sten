@@ -3,6 +3,13 @@ from dataclasses import dataclass
 
 CATEGORIES = ("decision", "task", "topic", "question")
 
+_CATEGORY_LABELS = {
+    "decision": "Решение",
+    "task": "Задача",
+    "topic": "Контекст",
+    "question": "Открытый вопрос",
+}
+
 ITEMS_SCHEMA = {
     "type": "object",
     "properties": {
@@ -13,8 +20,9 @@ ITEMS_SCHEMA = {
                 "properties": {
                     "text": {"type": "string"},
                     "category": {"type": "string", "enum": list(CATEGORIES)},
+                    "theme": {"type": "string"},
                 },
-                "required": ["text", "category"],
+                "required": ["text", "category", "theme"],
             },
         }
     },
@@ -26,6 +34,11 @@ ITEMS_SCHEMA = {
 class SummaryItem:
     text: str
     category: str
+    theme: str = "Общее"
+
+
+def category_label(category: str) -> str:
+    return _CATEGORY_LABELS.get(category, category)
 
 
 def parse_items(raw: str) -> list[SummaryItem]:
@@ -41,5 +54,6 @@ def parse_items(raw: str) -> list[SummaryItem]:
         category = entry.get("category")
         if category not in CATEGORIES:
             category = "topic"
-        items.append(SummaryItem(text, category))
+        theme = str(entry.get("theme", "")).strip() or "Общее"
+        items.append(SummaryItem(text, category, theme))
     return items

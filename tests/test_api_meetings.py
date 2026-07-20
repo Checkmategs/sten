@@ -71,7 +71,7 @@ def test_stop_conflict_returns_409(client, monkeypatch):
 
 def test_get_meeting_with_items_and_counts(client):
     mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
-    db.replace_items(mid, [("Пункт A", "decision"), ("Пункт B", "task")])
+    db.replace_items(mid, [("Пункт A", "decision", "Общее"), ("Пункт B", "task", "Общее")])
     items = db.list_items(mid)
     db.set_item_status(items[0]["id"], "accepted")
 
@@ -92,7 +92,7 @@ def test_status_endpoint(client):
 
 def test_patch_item_text_and_status(client):
     mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
-    db.replace_items(mid, [("Старый", "topic")])
+    db.replace_items(mid, [("Старый", "topic", "Общее")])
     item_id = db.list_items(mid)[0]["id"]
 
     r = client.patch(
@@ -111,7 +111,7 @@ def test_rewrite_item_endpoint(client, monkeypatch):
     monkeypatch.setattr("sten.api.meetings.rewrite_item", mock_rewrite)
 
     mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
-    db.replace_items(mid, [("Старый пункт", "decision")])
+    db.replace_items(mid, [("Старый пункт", "decision", "Общее")])
     item_id = db.list_items(mid)[0]["id"]
 
     r = client.post(

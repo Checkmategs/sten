@@ -26,6 +26,7 @@ export interface Item {
   meeting_id: number
   text: string
   category: string
+  theme: string
   status: ItemStatus
   position: number
 }
@@ -125,5 +126,9 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
+  },
+
+  resummarize(id: number): Promise<StopMeetingResponse> {
+    return request(`/api/meetings/${id}/resummarize`, { method: 'POST' })
   },
 }
