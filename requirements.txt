@@ -4,3 +4,6 @@ pytest
 fastapi
 uvicorn
 python-multipart
+torch
+torchaudio
+pyannote.audio

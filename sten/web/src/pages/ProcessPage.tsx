@@ -64,6 +64,7 @@ export function ProcessPage() {
 
   return (
     <main className="process-page">
+      <p className="sten-brand">Sten</p>
       <h1>Обработка встречи</h1>
 
       {label ? (

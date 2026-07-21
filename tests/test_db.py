@@ -64,3 +64,22 @@ def test_reopen_item_returns_meeting_to_ready(isolated_db):
 
     db.set_item_status(item["id"], "pending")
     assert db.get_meeting(mid)["status"] == "ready"
+
+
+def test_delete_item(isolated_db):
+    mid = db.create_meeting("A")
+    db.replace_items(mid, [("A", "topic", "Общее"), ("B", "topic", "Общее")])
+    items = db.list_items(mid)
+    assert db.delete_item(items[0]["id"]) == mid
+    assert [i["text"] for i in db.list_items(mid)] == ["B"]
+    assert db.delete_item(99999) is None
+
+
+def test_delete_last_pending_marks_consensus(isolated_db):
+    mid = db.create_meeting("A")
+    db.replace_items(mid, [("A", "topic", "Общее"), ("B", "topic", "Общее")])
+    items = db.list_items(mid)
+    db.set_item_status(items[0]["id"], "accepted")
+    db.delete_item(items[1]["id"])
+    db.maybe_mark_consensus(mid)
+    assert db.get_meeting(mid)["status"] == "consensus"

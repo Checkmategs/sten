@@ -144,6 +144,19 @@ def set_item_status(item_id: int, status: str) -> dict:
         return dict(row)
 
 
+def delete_item(item_id: int) -> int | None:
+    """Delete item; return meeting_id if deleted, else None."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT meeting_id FROM items WHERE id = ?", (item_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        meeting_id = int(row["meeting_id"])
+        conn.execute("DELETE FROM items WHERE id = ?", (item_id,))
+        return meeting_id
+
+
 def count_item_statuses(meeting_id: int) -> dict[str, int]:
     with _connect() as conn:
         rows = conn.execute(

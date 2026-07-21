@@ -30,7 +30,9 @@ def test_write_outputs_creates_all_files(tmp_path: Path):
 
     assert (tmp_path / "transcript.txt").read_text(encoding="utf-8") == "Привет всем."
     tj = json.loads((tmp_path / "transcript.json").read_text(encoding="utf-8"))
-    assert tj == [{"start": 0.0, "end": 1.5, "text": "Привет всем."}]
+    assert tj == [
+        {"start": 0.0, "end": 1.5, "text": "Привет всем.", "speaker": None}
+    ]
     sj = json.loads((tmp_path / "summary.json").read_text(encoding="utf-8"))
     assert sj == {
         "items": [

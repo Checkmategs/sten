@@ -125,5 +125,75 @@ def test_rewrite_item_endpoint(client, monkeypatch):
     assert mock_rewrite.call_args.args[1] == "бюджет не согласован"
 
 
+def test_delete_item_endpoint(client):
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    db.replace_items(mid, [("A", "topic", "Общее"), ("B", "topic", "Общее")])
+    item_id = db.list_items(mid)[0]["id"]
+
+    r = client.delete(f"/api/meetings/{mid}/items/{item_id}")
+    assert r.status_code == 200
+    assert r.json() == {"ok": True, "id": item_id}
+    assert [i["text"] for i in db.list_items(mid)] == ["B"]
+
+
+def test_transcript_endpoint(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DATA_DIR", tmp_path / "data")
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+
+    r0 = client.get(f"/api/meetings/{mid}/transcript")
+    assert r0.status_code == 200
+    assert r0.json()["available"] is False
+    assert r0.json()["turns"] == []
+    assert r0.json()["diarized"] is False
+
+    out = tmp_path / "data" / "meetings" / str(mid)
+    out.mkdir(parents=True)
+    (out / "transcript.txt").write_text("Привет, это тест.", encoding="utf-8")
+    (out / "transcript.json").write_text(
+        '[{"start":0,"end":1,"text":"Привет, это тест.","speaker":null}]',
+        encoding="utf-8",
+    )
+
+    r1 = client.get(f"/api/meetings/{mid}/transcript")
+    assert r1.status_code == 200
+    body = r1.json()
+    assert body["available"] is True
+    assert body["diarized"] is False
+    assert body["turns"][0]["text"] == "Привет, это тест."
+
+
+def test_transcript_with_speakers(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DATA_DIR", tmp_path / "data")
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    out = tmp_path / "data" / "meetings" / str(mid)
+    out.mkdir(parents=True)
+    (out / "transcript.json").write_text(
+        "["
+        '{"start":0,"end":1,"text":"Привет","speaker":"Спикер 1"},'
+        '{"start":1,"end":2,"text":"Пока","speaker":"Спикер 2"}'
+        "]",
+        encoding="utf-8",
+    )
+    (out / "transcript.txt").write_text(
+        "Спикер 1: Привет\n\nСпикер 2: Пока", encoding="utf-8"
+    )
+
+    r = client.get(f"/api/meetings/{mid}/transcript")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["diarized"] is True
+    assert [t["speaker"] for t in body["turns"]] == ["Спикер 1", "Спикер 2"]
+
+
+def test_diarize_endpoint(client, monkeypatch):
+    mock = MagicMock()
+    monkeypatch.setattr("sten.api.meetings.start_diarize", mock)
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    r = client.post(f"/api/meetings/{mid}/diarize")
+    assert r.status_code == 200
+    assert r.json() == {"id": mid, "status": "diarizing"}
+    mock.assert_called_once_with(mid)
+
+
 def test_get_missing_meeting_404(client):
     assert client.get("/api/meetings/999").status_code == 404

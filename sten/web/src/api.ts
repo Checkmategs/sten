@@ -61,6 +61,22 @@ export interface MeetingStatusResponse {
   counts: ItemCounts
 }
 
+export interface TranscriptTurn {
+  speaker: string
+  start: number
+  end: number
+  text: string
+}
+
+export interface TranscriptResponse {
+  text: string
+  available: boolean
+  turns: TranscriptTurn[]
+  diarized: boolean
+  busy: boolean
+  error: string | null
+}
+
 export interface PatchItemBody {
   text?: string
   status?: ItemStatus
@@ -96,6 +112,14 @@ export const api = {
     return request(`/api/meetings/${id}`)
   },
 
+  getTranscript(id: number): Promise<TranscriptResponse> {
+    return request(`/api/meetings/${id}/transcript`)
+  },
+
+  diarize(id: number): Promise<{ id: number; status: string }> {
+    return request(`/api/meetings/${id}/diarize`, { method: 'POST' })
+  },
+
   uploadChunk(id: number, data: Blob | ArrayBuffer): Promise<ChunkUploadResponse> {
     return request(`/api/meetings/${id}/chunks`, {
       method: 'POST',
@@ -117,6 +141,12 @@ export const api = {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+    })
+  },
+
+  deleteItem(meetingId: number, itemId: number): Promise<{ ok: boolean; id: number }> {
+    return request(`/api/meetings/${meetingId}/items/${itemId}`, {
+      method: 'DELETE',
     })
   },
 

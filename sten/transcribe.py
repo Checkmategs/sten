@@ -10,6 +10,7 @@ class Segment:
     start: float
     end: float
     text: str
+    speaker: str | None = None
 
 
 def transcribe(wav: Path, model_name: str = WHISPER_MODEL) -> list[Segment]:
@@ -25,4 +26,13 @@ def transcribe(wav: Path, model_name: str = WHISPER_MODEL) -> list[Segment]:
 
 
 def transcript_text(segments: list[Segment]) -> str:
-    return "\n".join(s.text for s in segments)
+    """Plain lines if no speakers; otherwise merged turns with labels."""
+    if not segments:
+        return ""
+    if not any(s.speaker for s in segments):
+        return "\n".join(s.text for s in segments)
+
+    from sten.diarize import merge_turns
+
+    turns = merge_turns(segments)
+    return "\n\n".join(f"{t.speaker}: {t.text}" for t in turns)

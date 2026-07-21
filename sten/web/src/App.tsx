@@ -3,9 +3,11 @@ import { ConsensusPage } from './pages/ConsensusPage'
 import { ProcessPage } from './pages/ProcessPage'
 import { RecordPage } from './pages/RecordPage'
 
+const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename === '/' ? undefined : basename}>
       <Routes>
         <Route path="/" element={<RecordPage />} />
         <Route path="/m/:id/process" element={<ProcessPage />} />

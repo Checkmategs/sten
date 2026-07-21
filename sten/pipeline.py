@@ -53,14 +53,21 @@ def run(audio_path: Path, out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
 
-    print("1/3 Конвертация аудио...")
+    print("1/4 Конвертация аудио...")
     wav = to_wav16k(audio_path, out_dir / "audio.wav")
 
-    print(f"2/3 Транскрипция (whisper {WHISPER_MODEL})...")
+    print(f"2/4 Транскрипция (whisper {WHISPER_MODEL})...")
     segments = transcribe(wav)
     print(f"    сегментов: {len(segments)}, прошло {time.time() - t0:.0f} c")
 
-    print(f"3/3 Саммаризация ({OLLAMA_MODEL})...")
+    print("3/4 Диаризация спикеров (pyannote)...")
+    from sten.diarize import diarize_segments
+
+    segments = diarize_segments(segments, wav)
+    n_speakers = len({s.speaker for s in segments if s.speaker})
+    print(f"    спикеров: {n_speakers}, прошло {time.time() - t0:.0f} c")
+
+    print(f"4/4 Саммаризация ({OLLAMA_MODEL})...")
     items = summarize(segments)
 
     write_outputs(out_dir, segments, items)
