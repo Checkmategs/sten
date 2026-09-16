@@ -30,7 +30,6 @@ export function RecordPage() {
 
   return (
     <main className="record-page">
-      <p className="sten-brand">Sten</p>
       <h1>Запись встречи</h1>
 
       <label className="record-title-label" htmlFor="meeting-title">

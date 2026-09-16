@@ -42,11 +42,6 @@ export function ItemCard({
   const reopen = () =>
     void run(() => api.patchItem(meetingId, item.id, { status: 'pending' }))
 
-  const remove = () => {
-    if (!window.confirm('Удалить этот пункт?')) return
-    void run(() => api.deleteItem(meetingId, item.id))
-  }
-
   const saveEdit = () =>
     void run(async () => {
       const text = draft.trim()
@@ -118,34 +113,6 @@ export function ItemCard({
     <article
       className={`item-card${item.status === 'accepted' ? ' item-card-accepted' : ''}`}
     >
-      {mode === 'view' ? (
-        <button
-          type="button"
-          className="item-btn-trash"
-          disabled={busy}
-          onClick={remove}
-          title="Удалить пункт"
-          aria-label="Удалить пункт"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            <line x1="10" y1="11" x2="10" y2="17" />
-            <line x1="14" y1="11" x2="14" y2="17" />
-          </svg>
-        </button>
-      ) : null}
-
       {categoryLabel ? (
         <span className="item-card-badge">{categoryLabel}</span>
       ) : null}
