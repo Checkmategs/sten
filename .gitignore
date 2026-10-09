@@ -7,3 +7,4 @@ node_modules/
 sten/web/dist/
 
 *.webm
+nginx/

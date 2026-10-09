@@ -112,8 +112,16 @@ export interface RewriteBody {
   objection: string
 }
 
+export interface AuthUser {
+  id: number
+  name: string
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${baseURL}${path}`, init)
+  const res = await fetch(`${baseURL}${path}`, { ...init, credentials: 'include' })
+  if (res.status === 401 && !path.startsWith('/api/auth/')) {
+    window.dispatchEvent(new Event('sten-unauthorized'))
+  }
   if (!res.ok) {
     const detail = await res.text().catch(() => '')
     throw new Error(`API ${res.status} ${path}${detail ? `: ${detail}` : ''}`)
@@ -124,6 +132,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   health(): Promise<HealthResponse> {
     return request('/api/health')
+  },
+
+  me(): Promise<AuthUser> {
+    return request('/api/auth/me')
+  },
+
+  register(name: string, password: string): Promise<AuthUser> {
+    return request('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, password }),
+    })
+  },
+
+  login(name: string, password: string): Promise<AuthUser> {
+    return request('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, password }),
+    })
+  },
+
+  logout(): Promise<{ ok: boolean }> {
+    return request('/api/auth/logout', { method: 'POST' })
   },
 
   listMeetings(includeId?: number): Promise<MeetingSummary[]> {
@@ -180,6 +212,7 @@ export const api = {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
       xhr.open('POST', `${baseURL}/api/meetings/${id}/audio`)
+      xhr.withCredentials = true
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable && event.total > 0) {
           onProgress(event.loaded / event.total)

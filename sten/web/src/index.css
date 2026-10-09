@@ -469,6 +469,7 @@ code {
   .app-main > main.process-page {
     margin: 0;
     width: 100%;
+    padding-inline: 1.35rem;
   }
 }
 
@@ -484,6 +485,7 @@ code {
 
 .record-hero {
   width: min(60rem, 100%);
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -495,7 +497,8 @@ code {
 .record-hero h1,
 .record-hero-title {
   margin: 0;
-  font-size: 3.5rem;
+  font-size: 4.5rem;
+  font-size: clamp(1.65rem, 10.8cqi, 4.5rem);
   font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.15;
@@ -1268,4 +1271,94 @@ code {
 .app-shell .process-progress-fill,
 .app-shell .record-progress-fill {
   background: #fff;
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  width: min(420px, calc(100% - 32px));
+  margin: 12vh auto 0;
+  padding: 28px 24px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(12, 12, 12, 0.72);
+  backdrop-filter: blur(16px);
+}
+
+.login-card h1 {
+  margin: 0 0 8px;
+  font-size: 1.6rem;
+}
+
+.login-lead {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 18px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.login-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.login-switch button {
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.login-switch button.is-on {
+  background: #fff;
+  color: #111;
+}
+
+.login-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.login-card input {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  padding: 10px 12px;
+}
+
+.login-error {
+  margin: 0;
+  color: #fff;
+}
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.nav-user button {
+  border: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  text-decoration: underline;
 }

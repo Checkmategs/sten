@@ -26,6 +26,7 @@ rsync -az --delete \
   --exclude '*.pyc' \
   --exclude '.superpowers' \
   --exclude '*.webm' \
+  --exclude 'nginx/' \
   ./ "$REMOTE:$REMOTE_DIR/"
 
 echo "3/4 Ensuring Python deps (fastapi/uvicorn)..."
@@ -75,12 +76,11 @@ else
 fi
 
 # HTTPS reverse proxy (docker host net so nginx can reach uvicorn on 127.0.0.1).
-# Certs persist outside the rsync tree.
-mkdir -p "$HOME/sten-http80/certs"
-chmod 700 "$HOME/sten-http80" "$HOME/sten-http80/certs"
-cp -f scripts/nginx-80.conf "$HOME/sten-http80/default.conf"
-CERT="$HOME/sten-http80/certs/cert.pem"
-KEY="$HOME/sten-http80/certs/key.pem"
+# Certs live in nginx/ and are excluded from rsync --delete.
+mkdir -p "$HOME/sten/nginx/certs"
+chmod 700 "$HOME/sten/nginx" "$HOME/sten/nginx/certs"
+CERT="$HOME/sten/nginx/certs/cert.pem"
+KEY="$HOME/sten/nginx/certs/key.pem"
 if [ ! -s "$CERT" ] || [ ! -s "$KEY" ] \
   || ! openssl x509 -in "$CERT" -noout -text 2>/dev/null | grep -q '10.91.0.55'; then
   openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 825 \
@@ -89,14 +89,14 @@ if [ ! -s "$CERT" ] || [ ! -s "$KEY" ] \
     -config "$HOME/sten/scripts/tls.cnf"
   echo "Generated self-signed TLS cert for 10.91.0.55"
 fi
-chmod 600 "$HOME/sten-http80/certs/key.pem"
-chmod 644 "$HOME/sten-http80/certs/cert.pem"
+chmod 600 "$HOME/sten/nginx/certs/key.pem"
+chmod 644 "$HOME/sten/nginx/certs/cert.pem"
 docker rm -f sten-http80 >/dev/null 2>&1 || true
 # Host network is required: uvicorn binds 127.0.0.1, which a bridge
 # host-gateway IP cannot reach. No sudo for iptables.
 docker run -d --name sten-http80 --restart unless-stopped --network host \
-  -v "$HOME/sten-http80/default.conf:/etc/nginx/conf.d/default.conf:ro" \
-  -v "$HOME/sten-http80/certs:/etc/nginx/certs:ro" \
+  -v "$HOME/sten/scripts/nginx-80.conf:/etc/nginx/conf.d/default.conf:ro" \
+  -v "$HOME/sten/nginx/certs:/etc/nginx/certs:ro" \
   nginx:alpine >/dev/null
 sleep 1
 if curl -kfs https://10.91.0.55/sten/api/health >/dev/null; then

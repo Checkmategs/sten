@@ -20,6 +20,11 @@ def client(tmp_path, monkeypatch):
         MagicMock(return_value="Переформулированный пункт"),
     )
     with TestClient(create_app()) as c:
+        registered = c.post(
+            "/api/auth/register",
+            json={"name": "tester", "password": "secret1"},
+        )
+        assert registered.status_code == 200, registered.text
         yield c
 
 

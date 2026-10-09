@@ -6,10 +6,11 @@ import json
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from sten import db
+from sten.api.auth import require_user
 from sten.audio import guess_audio_ext
 from sten.api.processing import (
     Conflict,
@@ -47,11 +48,15 @@ class RewriteBody(BaseModel):
     objection: str = Field(min_length=1)
 
 
-def _require_meeting(meeting_id: int) -> dict:
+def _require_meeting(meeting_id: int, user: dict) -> dict:
     meeting = db.get_meeting(meeting_id)
-    if meeting is None:
+    if meeting is None or meeting.get("user_id") != user["id"]:
         raise HTTPException(status_code=404, detail="meeting not found")
     return meeting
+
+
+def _public_meeting(meeting: dict) -> dict:
+    return {key: value for key, value in meeting.items() if key != "user_id"}
 
 
 def _require_item(meeting_id: int, item_id: int) -> dict:
@@ -105,7 +110,9 @@ def _meeting_visible(meeting: dict, include_id: int | None) -> bool:
 
 
 @router.get("/meetings")
-def list_meetings(include_id: int | None = None) -> list[dict]:
+def list_meetings(
+    include_id: int | None = None, user: dict = Depends(require_user)
+) -> list[dict]:
     """Newest meetings first. Empty recordings stay hidden unless include_id."""
     return [
         {
@@ -114,41 +121,43 @@ def list_meetings(include_id: int | None = None) -> list[dict]:
             "status": meeting["status"],
             "created_at": meeting["created_at"],
         }
-        for meeting in db.list_meetings()
+        for meeting in db.list_meetings(user["id"])
         if _meeting_visible(meeting, include_id)
     ]
 
 
 @router.post("/meetings")
-def create_meeting(body: CreateMeetingBody) -> dict:
-    meeting_id = db.create_meeting(body.title)
+def create_meeting(body: CreateMeetingBody, user: dict = Depends(require_user)) -> dict:
+    meeting_id = db.create_meeting(body.title, user["id"])
     meeting = db.get_meeting(meeting_id)
     assert meeting is not None
     return {"id": meeting["id"], "title": meeting["title"], "status": meeting["status"]}
 
 
 @router.get("/meetings/{meeting_id}")
-def get_meeting(meeting_id: int) -> dict:
-    meeting = _require_meeting(meeting_id)
+def get_meeting(meeting_id: int, user: dict = Depends(require_user)) -> dict:
+    meeting = _require_meeting(meeting_id, user)
     items = db.list_items(meeting_id)
     counts = db.count_item_statuses(meeting_id)
-    return {**meeting, "items": items, "counts": counts}
+    return {**_public_meeting(meeting), "items": items, "counts": counts}
 
 
 @router.patch("/meetings/{meeting_id}")
-def patch_meeting(meeting_id: int, body: PatchMeetingBody) -> dict:
-    _require_meeting(meeting_id)
+def patch_meeting(
+    meeting_id: int, body: PatchMeetingBody, user: dict = Depends(require_user)
+) -> dict:
+    _require_meeting(meeting_id, user)
     title = body.title.strip()
     if not title:
         raise HTTPException(status_code=400, detail="empty title")
     db.set_meeting_title(meeting_id, title)
-    meeting = _require_meeting(meeting_id)
+    meeting = _require_meeting(meeting_id, user)
     return {"id": meeting["id"], "title": meeting["title"], "status": meeting["status"]}
 
 
 @router.delete("/meetings/{meeting_id}")
-def delete_meeting(meeting_id: int) -> dict:
-    _require_meeting(meeting_id)
+def delete_meeting(meeting_id: int, user: dict = Depends(require_user)) -> dict:
+    _require_meeting(meeting_id, user)
     if is_busy(meeting_id):
         raise HTTPException(status_code=409, detail="meeting is processing")
     db.delete_meeting(meeting_id)
@@ -156,9 +165,9 @@ def delete_meeting(meeting_id: int) -> dict:
 
 
 @router.get("/meetings/{meeting_id}/transcript")
-def get_transcript(meeting_id: int) -> dict:
+def get_transcript(meeting_id: int, user: dict = Depends(require_user)) -> dict:
     """Full meeting transcript, optionally split into speaker turns."""
-    _require_meeting(meeting_id)
+    _require_meeting(meeting_id, user)
     out_dir = Path(db.DATA_DIR) / "meetings" / str(meeting_id)
     tj = out_dir / "transcript.json"
     tt = out_dir / "transcript.txt"
@@ -221,9 +230,9 @@ def get_transcript(meeting_id: int) -> dict:
 
 
 @router.post("/meetings/{meeting_id}/diarize")
-def diarize_meeting(meeting_id: int) -> dict:
+def diarize_meeting(meeting_id: int, user: dict = Depends(require_user)) -> dict:
     """Run speaker diarization on existing audio+transcript (no Whisper/summary)."""
-    _require_meeting(meeting_id)
+    _require_meeting(meeting_id, user)
     try:
         start_diarize(meeting_id)
     except Conflict as exc:
@@ -232,8 +241,10 @@ def diarize_meeting(meeting_id: int) -> dict:
 
 
 @router.post("/meetings/{meeting_id}/chunks")
-async def upload_chunk(meeting_id: int, request: Request) -> dict:
-    _require_meeting(meeting_id)
+async def upload_chunk(
+    meeting_id: int, request: Request, user: dict = Depends(require_user)
+) -> dict:
+    _require_meeting(meeting_id, user)
     data = await request.body()
     db.append_audio_chunk(meeting_id, data)
     return {"bytes_written": len(data)}
@@ -241,9 +252,11 @@ async def upload_chunk(meeting_id: int, request: Request) -> dict:
 
 @router.post("/meetings/{meeting_id}/audio")
 async def upload_audio(
-    meeting_id: int, file: UploadFile = File(...)
+    meeting_id: int,
+    file: UploadFile = File(...),
+    user: dict = Depends(require_user),
 ) -> dict:
-    meeting = _require_meeting(meeting_id)
+    meeting = _require_meeting(meeting_id, user)
     if meeting["status"] not in ("recording", "error"):
         raise HTTPException(
             status_code=409, detail="meeting is not accepting audio"
@@ -300,8 +313,8 @@ async def upload_audio(
 
 
 @router.post("/meetings/{meeting_id}/stop")
-def stop_meeting(meeting_id: int) -> dict:
-    _require_meeting(meeting_id)
+def stop_meeting(meeting_id: int, user: dict = Depends(require_user)) -> dict:
+    _require_meeting(meeting_id, user)
     try:
         start_processing(meeting_id)
     except Conflict as exc:
@@ -314,8 +327,8 @@ def stop_meeting(meeting_id: int) -> dict:
 
 
 @router.get("/meetings/{meeting_id}/status")
-def meeting_status(meeting_id: int) -> dict:
-    meeting = _require_meeting(meeting_id)
+def meeting_status(meeting_id: int, user: dict = Depends(require_user)) -> dict:
+    meeting = _require_meeting(meeting_id, user)
     return {
         "status": meeting["status"],
         "error": meeting["error"],
@@ -325,9 +338,9 @@ def meeting_status(meeting_id: int) -> dict:
 
 
 @router.post("/meetings/{meeting_id}/resummarize")
-def resummarize_meeting(meeting_id: int) -> dict:
+def resummarize_meeting(meeting_id: int, user: dict = Depends(require_user)) -> dict:
     """Пересобрать саммари из уже готового транскрипта (без повторного Whisper)."""
-    _require_meeting(meeting_id)
+    _require_meeting(meeting_id, user)
     try:
         start_resummarize(meeting_id)
     except Conflict as exc:
@@ -339,8 +352,13 @@ def resummarize_meeting(meeting_id: int) -> dict:
 
 
 @router.patch("/meetings/{meeting_id}/items/{item_id}")
-def patch_item(meeting_id: int, item_id: int, body: PatchItemBody) -> dict:
-    _require_meeting(meeting_id)
+def patch_item(
+    meeting_id: int,
+    item_id: int,
+    body: PatchItemBody,
+    user: dict = Depends(require_user),
+) -> dict:
+    _require_meeting(meeting_id, user)
     _require_item(meeting_id, item_id)
     item = None
     if body.text is not None:
@@ -355,8 +373,10 @@ def patch_item(meeting_id: int, item_id: int, body: PatchItemBody) -> dict:
 
 
 @router.delete("/meetings/{meeting_id}/items/{item_id}")
-def delete_meeting_item(meeting_id: int, item_id: int) -> dict:
-    _require_meeting(meeting_id)
+def delete_meeting_item(
+    meeting_id: int, item_id: int, user: dict = Depends(require_user)
+) -> dict:
+    _require_meeting(meeting_id, user)
     _require_item(meeting_id, item_id)
     deleted_meeting = db.delete_item(item_id)
     if deleted_meeting is None:
@@ -366,8 +386,13 @@ def delete_meeting_item(meeting_id: int, item_id: int) -> dict:
 
 
 @router.post("/meetings/{meeting_id}/items/{item_id}/rewrite")
-def rewrite_meeting_item(meeting_id: int, item_id: int, body: RewriteBody) -> dict:
-    _require_meeting(meeting_id)
+def rewrite_meeting_item(
+    meeting_id: int,
+    item_id: int,
+    body: RewriteBody,
+    user: dict = Depends(require_user),
+) -> dict:
+    _require_meeting(meeting_id, user)
     item = _require_item(meeting_id, item_id)
     new_text = rewrite_item(item["text"], body.objection)
     updated = db.update_item_text(item_id, new_text)
@@ -376,9 +401,11 @@ def rewrite_meeting_item(meeting_id: int, item_id: int, body: RewriteBody) -> di
 
 
 @router.post("/meetings/{meeting_id}/items/{item_id}/elaborate")
-def elaborate_meeting_item(meeting_id: int, item_id: int) -> dict:
+def elaborate_meeting_item(
+    meeting_id: int, item_id: int, user: dict = Depends(require_user)
+) -> dict:
     """Предложить уточнённый текст пункта по транскрипту (без записи в БД)."""
-    _require_meeting(meeting_id)
+    _require_meeting(meeting_id, user)
     item = _require_item(meeting_id, item_id)
     transcript_path = Path(DATA_DIR) / "meetings" / str(meeting_id) / "transcript.txt"
     transcript = (

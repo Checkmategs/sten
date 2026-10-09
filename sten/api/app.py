@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from sten.api.auth import router as auth_router
 from sten.api.meetings import router as meetings_router
 from sten.db import init_db
 
@@ -21,6 +22,7 @@ async def lifespan(_app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Sten", lifespan=lifespan)
+    app.include_router(auth_router)
     app.include_router(meetings_router)
 
     if WEB_DIST.is_dir():

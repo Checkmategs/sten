@@ -5,6 +5,8 @@ import { WaveCanvas } from './WaveCanvas'
 
 interface AppShellProps {
   children: ReactNode
+  userName: string
+  onLogout: () => void
 }
 
 function meetingPath(status: MeetingStatus, id: number): string {
@@ -41,7 +43,7 @@ function whenLabel(iso: string): string {
 }
 
 /** Nina-like shell: wave, glass burger, meeting history. */
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, userName, onLogout }: AppShellProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const menuId = useId()
@@ -230,6 +232,12 @@ export function AppShell({ children }: AppShellProps) {
           ) : null}
           </>
         )}
+        <div className="nav-user">
+          <span>{userName}</span>
+          <button type="button" onClick={onLogout}>
+            Выйти
+          </button>
+        </div>
       </nav>
 
       <div className="app-main" id="sten-main">
