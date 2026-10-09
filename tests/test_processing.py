@@ -5,6 +5,11 @@ from pathlib import Path
 
 import pytest
 
+from pathlib import Path
+
+import pytest
+
+from sten import db
 from sten.api import processing
 
 
@@ -23,11 +28,10 @@ def test_load_items_rejects_empty_transcript(tmp_path: Path):
         processing.load_items_from_output(out)
 
 
-def test_load_items_rejects_empty_summary(tmp_path: Path):
+def test_load_items_allows_empty_summary(tmp_path: Path):
     out = tmp_path / "m"
     _write_out(out, transcript="Что-то сказали", items=[])
-    with pytest.raises(RuntimeError, match="пункты саммари пустые"):
-        processing.load_items_from_output(out)
+    assert processing.load_items_from_output(out) == []
 
 
 def test_load_items_ok(tmp_path: Path):
@@ -40,3 +44,29 @@ def test_load_items_ok(tmp_path: Path):
     assert processing.load_items_from_output(out) == [
         ("Решили X", "decision", "Релиз")
     ]
+
+
+def test_process_meeting_uses_uploaded_m4a(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "sten.db")
+    monkeypatch.setattr(db, "DATA_DIR", tmp_path / "data")
+    db.init_db()
+    mid = db.create_meeting("A")
+    audio = db.save_uploaded_audio(mid, "m4a")
+    audio.write_bytes(b"fake")
+
+    called: list[Path] = []
+
+    def fake_run(audio_path, out_dir, on_stage=None):
+        called.append(audio_path)
+        if on_stage:
+            on_stage(1, 3, "Конвертация аудио…")
+        _write_out(
+            out_dir,
+            transcript="Речь",
+            items=[{"text": "Пункт", "category": "topic", "theme": "Общее"}],
+        )
+
+    monkeypatch.setattr(processing.pipeline, "run", fake_run)
+    processing._process_meeting(mid)
+    assert called == [audio]
+    assert db.get_meeting(mid)["status"] == "ready"

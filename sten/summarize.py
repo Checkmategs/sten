@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from sten.chunking import chunk_segments
 from sten.items import ITEMS_SCHEMA, SummaryItem, parse_items
 from sten.llm import generate
@@ -47,21 +49,41 @@ _SINGLE_PROMPT = _ITEMS_INSTRUCTION + """
 {chunk}"""
 
 
-def summarize(segments: list[Segment]) -> list[SummaryItem]:
+def summarize(
+    segments: list[Segment],
+    on_progress: Callable[[float], None] | None = None,
+) -> list[SummaryItem]:
     chunks = chunk_segments(segments)
     if not chunks:
         return []
+
+    def tick(fraction: float) -> None:
+        if on_progress is not None:
+            on_progress(fraction)
+
     if len(chunks) == 1:
+        tick(0.0)
         raw = generate(_SINGLE_PROMPT.format(chunk=chunks[0]), schema=ITEMS_SCHEMA)
+        tick(1.0)
         return parse_items(raw)
-    partials = [generate(_MAP_PROMPT.format(chunk=c)) for c in chunks]
+    n_map = len(chunks)
+    partials: list[str] = []
+    for i, chunk in enumerate(chunks):
+        tick(i / (n_map + 1))
+        partials.append(generate(_MAP_PROMPT.format(chunk=chunk)))
     while len("\n\n---\n\n".join(partials)) > _REDUCE_BUDGET_CHARS:
-        partials = [
-            generate(_COMBINE_PROMPT.format(partials=batch), num_ctx=16384)
-            for batch in _batch_partials(partials)
-        ]
+        next_partials: list[str] = []
+        batches = _batch_partials(partials)
+        for i, batch in enumerate(batches):
+            tick(min(0.98, (n_map + i + 1) / (n_map + len(batches) + 1)))
+            next_partials.append(
+                generate(_COMBINE_PROMPT.format(partials=batch), num_ctx=16384)
+            )
+        partials = next_partials
+    tick(n_map / (n_map + 1))
     joined = "\n\n---\n\n".join(partials)
     raw = generate(_REDUCE_PROMPT.format(partials=joined), schema=ITEMS_SCHEMA, num_ctx=16384)
+    tick(1.0)
     return parse_items(raw)
 
 

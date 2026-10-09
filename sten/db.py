@@ -1,8 +1,30 @@
+import shutil
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
 from sten.config import DATA_DIR, DB_PATH
+
+ALLOWED_AUDIO_EXTS = frozenset({
+    "webm", "m4a", "caf", "mp3", "wav", "ogg", "oga",
+    "aac", "flac", "mp4", "mpeg", "mpga", "m4b",
+})
+MAX_AUDIO_BYTES = 512 * 1024 * 1024
+_SOURCE_AUDIO_ORDER = (
+    "audio.webm",
+    "audio.m4a",
+    "audio.caf",
+    "audio.mp3",
+    "audio.ogg",
+    "audio.oga",
+    "audio.aac",
+    "audio.flac",
+    "audio.mp4",
+    "audio.mpeg",
+    "audio.mpga",
+    "audio.m4b",
+    "audio.wav",
+)
 
 
 def _connect() -> sqlite3.Connection:
@@ -22,7 +44,10 @@ def init_db() -> None:
               title TEXT NOT NULL,
               status TEXT NOT NULL,
               error TEXT,
-              created_at TEXT NOT NULL
+              created_at TEXT NOT NULL,
+              progress_step INTEGER,
+              progress_label TEXT,
+              progress_percent INTEGER
             );
             CREATE TABLE IF NOT EXISTS items (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,13 +60,22 @@ def init_db() -> None:
             );
             """
         )
-        cols = {
+        item_cols = {
             row[1] for row in conn.execute("PRAGMA table_info(items)").fetchall()
         }
-        if "theme" not in cols:
+        if "theme" not in item_cols:
             conn.execute(
                 "ALTER TABLE items ADD COLUMN theme TEXT NOT NULL DEFAULT 'Общее'"
             )
+        meeting_cols = {
+            row[1] for row in conn.execute("PRAGMA table_info(meetings)").fetchall()
+        }
+        if "progress_step" not in meeting_cols:
+            conn.execute("ALTER TABLE meetings ADD COLUMN progress_step INTEGER")
+        if "progress_label" not in meeting_cols:
+            conn.execute("ALTER TABLE meetings ADD COLUMN progress_label TEXT")
+        if "progress_percent" not in meeting_cols:
+            conn.execute("ALTER TABLE meetings ADD COLUMN progress_percent INTEGER")
 
 
 def create_meeting(title: str) -> int:
@@ -54,10 +88,31 @@ def create_meeting(title: str) -> int:
         return cur.lastrowid
 
 
+def delete_meeting(meeting_id: int) -> bool:
+    """Remove the meeting row, its items, and files on disk."""
+    with _connect() as conn:
+        cur = conn.execute("DELETE FROM meetings WHERE id = ?", (meeting_id,))
+        deleted = cur.rowcount > 0
+    folder = DATA_DIR / "meetings" / str(meeting_id)
+    if folder.is_dir():
+        shutil.rmtree(folder)
+    return deleted
+
+
+def set_meeting_title(meeting_id: int, title: str) -> None:
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE meetings SET title = ? WHERE id = ?",
+            (title, meeting_id),
+        )
+
+
 def get_meeting(meeting_id: int) -> dict | None:
     with _connect() as conn:
         row = conn.execute(
-            "SELECT id, title, status, created_at, error FROM meetings WHERE id = ?",
+            "SELECT id, title, status, created_at, error, "
+            "progress_step, progress_label, progress_percent "
+            "FROM meetings WHERE id = ?",
             (meeting_id,),
         ).fetchone()
         return dict(row) if row else None
@@ -75,10 +130,73 @@ def set_meeting_status(
     meeting_id: int, status: str, error: str | None = None
 ) -> None:
     with _connect() as conn:
+        if status in ("ready", "error", "recording"):
+            conn.execute(
+                "UPDATE meetings SET status = ?, error = ?, "
+                "progress_step = NULL, progress_label = NULL, "
+                "progress_percent = NULL WHERE id = ?",
+                (status, error, meeting_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE meetings SET status = ?, error = ? WHERE id = ?",
+                (status, error, meeting_id),
+            )
+
+
+def set_meeting_progress(
+    meeting_id: int,
+    step: int | None,
+    label: str | None,
+    percent: int | None = None,
+) -> None:
+    with _connect() as conn:
         conn.execute(
-            "UPDATE meetings SET status = ?, error = ? WHERE id = ?",
-            (status, error, meeting_id),
+            "UPDATE meetings SET progress_step = ?, progress_label = ?, "
+            "progress_percent = ? WHERE id = ?",
+            (step, label, percent, meeting_id),
         )
+
+
+def get_meeting_progress(
+    meeting_id: int,
+) -> tuple[int | None, str | None, int | None]:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT progress_step, progress_label, progress_percent "
+            "FROM meetings WHERE id = ?",
+            (meeting_id,),
+        ).fetchone()
+        if row is None:
+            return None, None, None
+        return row["progress_step"], row["progress_label"], row["progress_percent"]
+
+
+def save_uploaded_audio(meeting_id: int, ext: str) -> Path:
+    clean = ext.lower().lstrip(".")
+    if clean not in ALLOWED_AUDIO_EXTS:
+        raise ValueError(f"unsupported audio extension: {ext}")
+    audio_dir = DATA_DIR / "meetings" / str(meeting_id)
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    return audio_dir / f"audio.{clean}"
+
+
+def replace_other_source_audio(meeting_id: int, keep: Path) -> None:
+    audio_dir = DATA_DIR / "meetings" / str(meeting_id)
+    keep_resolved = keep.resolve()
+    for name in _SOURCE_AUDIO_ORDER:
+        path = audio_dir / name
+        if path.is_file() and path.resolve() != keep_resolved:
+            path.unlink()
+
+
+def find_source_audio(meeting_id: int) -> Path:
+    audio_dir = DATA_DIR / "meetings" / str(meeting_id)
+    for name in _SOURCE_AUDIO_ORDER:
+        path = audio_dir / name
+        if path.is_file() and path.stat().st_size > 0:
+            return path
+    raise FileNotFoundError(f"no source audio for meeting {meeting_id}")
 
 
 def append_audio_chunk(meeting_id: int, data: bytes) -> Path:

@@ -3,7 +3,7 @@
 # Использование: scripts/remote-run.sh путь/к/аудио [имя-результата]
 set -euo pipefail
 
-REMOTE="${STEN_REMOTE:-nineone@10.91.0.142}"
+REMOTE="${STEN_REMOTE:-nineone@10.91.0.55}"
 AUDIO="${1:?Использование: remote-run.sh путь/к/аудио [имя-результата]}"
 NAME="${2:-$(basename "${AUDIO%.*}")}"
 

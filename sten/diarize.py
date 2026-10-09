@@ -119,7 +119,15 @@ def diarize_wav(wav: Path) -> list[tuple[float, float, str]]:
         DIARIZATION_MODEL,
         token=HF_TOKEN,
     )
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # This venv's torch is built for CUDA 13. The server driver only supports
+    # 12.8, so a "cuda" device can still fail during init. Fall back to CPU.
+    device = torch.device("cpu")
+    if torch.cuda.is_available():
+        try:
+            torch.zeros(1, device="cuda")
+            device = torch.device("cuda")
+        except Exception:
+            device = torch.device("cpu")
     pipeline.to(device)
 
     annotation = pipeline(str(wav))

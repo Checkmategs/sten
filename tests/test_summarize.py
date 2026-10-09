@@ -28,6 +28,24 @@ def test_single_chunk_one_llm_call(monkeypatch):
     assert calls[0] is not None  # schema передана
 
 
+def test_summarize_reports_progress_fractions(monkeypatch):
+    monkeypatch.setattr(
+        summarize_mod,
+        "generate",
+        lambda prompt, *, schema=None, model=None, **kwargs: (
+            '{"items": [{"text": "Итог", "category": "topic"}]}'
+            if schema is not None
+            else "частичное"
+        ),
+    )
+    seen: list[float] = []
+    segs = [seg("а" * 4000), seg("б" * 4000)]
+    summarize(segs, on_progress=seen.append)
+    assert seen[0] == 0.0
+    assert seen[-1] == 1.0
+    assert seen == sorted(seen)
+
+
 def test_multi_chunk_map_reduce(monkeypatch):
     calls = []
 

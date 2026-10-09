@@ -1,10 +1,28 @@
 import subprocess
 import wave
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
 from sten.audio import to_wav16k
+
+
+def test_to_wav16k_same_path_writes_via_temp(tmp_path: Path, monkeypatch):
+    src = tmp_path / "audio.wav"
+    src.write_bytes(b"RIFF-old")
+
+    def fake_run(args, **_kwargs):
+        dest = Path(args[-1])
+        assert dest != src
+        dest.write_bytes(b"WAV-new")
+        return MagicMock(returncode=0, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = to_wav16k(src, src)
+    assert result == src
+    assert src.read_bytes() == b"WAV-new"
+    assert list(tmp_path.glob("*.tmp.wav")) == []
 
 
 @pytest.mark.integration

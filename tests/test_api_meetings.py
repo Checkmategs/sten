@@ -83,11 +83,184 @@ def test_get_meeting_with_items_and_counts(client):
     assert body["counts"] == {"pending": 1, "accepted": 1}
 
 
+def test_patch_meeting_renames_title(client):
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    r = client.patch(f"/api/meetings/{mid}", json={"title": "  Планёрка  "})
+    assert r.status_code == 200
+    assert r.json()["title"] == "Планёрка"
+    assert client.get(f"/api/meetings/{mid}").json()["title"] == "Планёрка"
+
+
+def test_delete_meeting_endpoint(client):
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    db.append_audio_chunk(mid, b"abc")
+    r = client.delete(f"/api/meetings/{mid}")
+    assert r.status_code == 200
+    assert r.json() == {"ok": True, "id": mid}
+    assert client.get(f"/api/meetings/{mid}").status_code == 404
+
+
+def test_delete_meeting_missing_404(client):
+    r = client.delete("/api/meetings/999")
+    assert r.status_code == 404
+
+
+def test_delete_meeting_while_busy_409(client, monkeypatch):
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    monkeypatch.setattr("sten.api.meetings.is_busy", lambda meeting_id: True)
+    r = client.delete(f"/api/meetings/{mid}")
+    assert r.status_code == 409
+    assert client.get(f"/api/meetings/{mid}").status_code == 200
+
+
+def test_patch_meeting_rejects_blank_title(client):
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    r = client.patch(f"/api/meetings/{mid}", json={"title": "   "})
+    assert r.status_code == 400
+    assert client.get(f"/api/meetings/{mid}").json()["title"] == "A"
+
+
 def test_status_endpoint(client):
     mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
     r = client.get(f"/api/meetings/{mid}/status")
     assert r.status_code == 200
-    assert r.json() == {"status": "recording", "error": None, "counts": {}}
+    assert r.json() == {
+        "status": "recording",
+        "error": None,
+        "counts": {},
+        "progress": None,
+    }
+
+
+def test_upload_audio_saves_m4a_and_starts_processing(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DATA_DIR", tmp_path / "data")
+    mock_start = MagicMock()
+    monkeypatch.setattr("sten.api.meetings.start_processing", mock_start)
+
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    r = client.post(
+        f"/api/meetings/{mid}/audio",
+        files={"file": ("memo.m4a", b"fake-audio", "audio/mp4")},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["id"] == mid
+    assert body["status"] == "processing"
+    assert body["filename"] == "audio.m4a"
+    assert body["bytes"] == len(b"fake-audio")
+    saved = tmp_path / "data" / "meetings" / str(mid) / "audio.m4a"
+    assert saved.read_bytes() == b"fake-audio"
+    mock_start.assert_called_once_with(mid)
+    status = client.get(f"/api/meetings/{mid}/status").json()
+    assert status["status"] == "processing"
+
+
+def test_upload_audio_replaces_existing_webm(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DATA_DIR", tmp_path / "data")
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    db.append_audio_chunk(mid, b"old-webm")
+    r = client.post(
+        f"/api/meetings/{mid}/audio",
+        files={"file": ("memo.m4a", b"new-m4a", "audio/mp4")},
+    )
+    assert r.status_code == 200
+    folder = tmp_path / "data" / "meetings" / str(mid)
+    assert (folder / "audio.m4a").read_bytes() == b"new-m4a"
+    assert not (folder / "audio.webm").exists()
+
+
+def test_upload_audio_extension_from_caf_filename(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DATA_DIR", tmp_path / "data")
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    r = client.post(
+        f"/api/meetings/{mid}/audio",
+        files={"file": ("voice.caf", b"caff-bytes", "")},
+    )
+    assert r.status_code == 200
+    assert r.json()["filename"] == "audio.caf"
+    assert (tmp_path / "data" / "meetings" / str(mid) / "audio.caf").is_file()
+
+
+def test_upload_audio_mime_only_blob_becomes_mp3(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DATA_DIR", tmp_path / "data")
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    r = client.post(
+        f"/api/meetings/{mid}/audio",
+        files={"file": ("blob", b"\xff\xfb" + b"\x00" * 20, "audio/mpeg")},
+    )
+    assert r.status_code == 200
+    assert r.json()["filename"] == "audio.mp3"
+
+
+def test_upload_audio_rejects_exe(client):
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    r = client.post(
+        f"/api/meetings/{mid}/audio",
+        files={"file": ("malware.exe", b"MZ", "application/octet-stream")},
+    )
+    assert r.status_code == 400
+
+
+def test_upload_audio_empty_file_400(client):
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    r = client.post(
+        f"/api/meetings/{mid}/audio",
+        files={"file": ("empty.m4a", b"", "audio/mp4")},
+    )
+    assert r.status_code == 400
+
+
+def test_upload_audio_missing_meeting_404(client):
+    r = client.post(
+        "/api/meetings/999/audio",
+        files={"file": ("memo.m4a", b"data", "audio/mp4")},
+    )
+    assert r.status_code == 404
+
+
+def test_upload_audio_oversize_413(client, monkeypatch):
+    monkeypatch.setattr("sten.api.meetings.MAX_AUDIO_BYTES", 10)
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    r = client.post(
+        f"/api/meetings/{mid}/audio",
+        files={"file": ("big.m4a", b"0123456789abcdef", "audio/mp4")},
+    )
+    assert r.status_code == 413
+
+
+def test_status_progress_while_processing(client):
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    db.set_meeting_status(mid, "processing")
+    db.set_meeting_progress(mid, 2, "Транскрипция…")
+    r = client.get(f"/api/meetings/{mid}/status")
+    assert r.status_code == 200
+    assert r.json()["progress"] == {
+        "step": 2,
+        "total": 4,
+        "percent": 40,
+        "label": "Транскрипция…",
+    }
+
+
+def test_status_progress_uses_stored_percent(client):
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    db.set_meeting_status(mid, "processing")
+    db.set_meeting_progress(mid, 2, "Транскрипция…", 47)
+    r = client.get(f"/api/meetings/{mid}/status")
+    assert r.json()["progress"]["percent"] == 47
+    assert r.json()["progress"]["label"] == "Транскрипция…"
+
+
+def test_status_progress_ready_is_100(client):
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    db.set_meeting_status(mid, "ready")
+    r = client.get(f"/api/meetings/{mid}/status")
+    assert r.json()["progress"] == {
+        "step": 4,
+        "total": 4,
+        "percent": 100,
+        "label": "Готово",
+    }
 
 
 def test_patch_item_text_and_status(client):
@@ -160,6 +333,7 @@ def test_transcript_endpoint(client, tmp_path, monkeypatch):
     assert body["available"] is True
     assert body["diarized"] is False
     assert body["turns"][0]["text"] == "Привет, это тест."
+    assert body["text"] == "[00:00]\nПривет, это тест."
 
 
 def test_transcript_with_speakers(client, tmp_path, monkeypatch):
@@ -183,6 +357,7 @@ def test_transcript_with_speakers(client, tmp_path, monkeypatch):
     body = r.json()
     assert body["diarized"] is True
     assert [t["speaker"] for t in body["turns"]] == ["Спикер 1", "Спикер 2"]
+    assert body["text"] == "[00:00]\nСпикер 1: Привет\n\nСпикер 2: Пока"
 
 
 def test_diarize_endpoint(client, monkeypatch):
@@ -197,3 +372,23 @@ def test_diarize_endpoint(client, monkeypatch):
 
 def test_get_missing_meeting_404(client):
     assert client.get("/api/meetings/999").status_code == 404
+
+
+def test_list_meetings_hides_empty_recordings(client):
+    empty = client.post("/api/meetings", json={"title": "Пустая"}).json()["id"]
+    ready = client.post("/api/meetings", json={"title": "Готовая"}).json()["id"]
+    db.set_meeting_status(ready, "ready")
+    with_audio = client.post("/api/meetings", json={"title": "С файлом"}).json()["id"]
+    db.save_uploaded_audio(with_audio, "webm").write_bytes(b"abc")
+
+    listed = client.get("/api/meetings")
+    assert listed.status_code == 200
+    ids = [item["id"] for item in listed.json()]
+    assert ids == sorted(ids, reverse=True)
+    assert ready in ids
+    assert with_audio in ids
+    assert empty not in ids
+    assert "error" not in listed.json()[0]
+
+    included = client.get("/api/meetings", params={"include_id": empty})
+    assert empty in [item["id"] for item in included.json()]

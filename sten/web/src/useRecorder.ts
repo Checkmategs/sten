@@ -4,6 +4,19 @@ import { api } from './api'
 export type RecorderPhase = 'idle' | 'starting' | 'recording' | 'stopping'
 
 const TIMESLICE_MS = 2000
+/** Software boost for quiet mics (1 = no boost). */
+const MIC_GAIN = 5
+const WAVE_BARS = 72
+const WAVE_PUSH_MS = 42
+
+const MIC_CONSTRAINTS: MediaStreamConstraints = {
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+    channelCount: 1,
+  },
+}
 
 export function defaultMeetingTitle(now = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -17,7 +30,25 @@ export function formatElapsed(ms: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
+export function httpsAppUrl(): string {
+  if (typeof window === 'undefined') return 'https://10.91.0.55/sten/'
+  const host = window.location.hostname || '10.91.0.55'
+  return `https://${host}/sten/`
+}
+
 export function micErrorMessage(err: unknown): string {
+  if (typeof window !== 'undefined' && !window.isSecureContext) {
+    return (
+      `Браузер блокирует микрофон на http://. Откройте ${httpsAppUrl()} ` +
+      'и подтвердите сертификат: «Дополнительно» → «Перейти на сайт».'
+    )
+  }
+  if (typeof navigator !== 'undefined' && !navigator.mediaDevices?.getUserMedia) {
+    return (
+      `Браузер блокирует микрофон на незащищённом адресе. Откройте ${httpsAppUrl()} ` +
+      'и подтвердите сертификат: «Дополнительно» → «Перейти на сайт».'
+    )
+  }
   if (err instanceof DOMException) {
     if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
       return 'Нет доступа к микрофону. Разрешите использование микрофона в настройках браузера.'
@@ -30,6 +61,12 @@ export function micErrorMessage(err: unknown): string {
     }
   }
   if (err instanceof Error && err.message) {
+    if (err.message.includes('getUserMedia') || err.message.includes('mediaDevices')) {
+      return (
+        `Браузер блокирует микрофон на незащищённом адресе. Откройте ${httpsAppUrl()} ` +
+        'и подтвердите сертификат: «Дополнительно» → «Перейти на сайт».'
+      )
+    }
     return `Не удалось получить доступ к микрофону: ${err.message}`
   }
   return 'Не удалось получить доступ к микрофону.'
@@ -47,11 +84,11 @@ export function useRecorder() {
   const [phase, setPhase] = useState<RecorderPhase>('idle')
   const [meetingId, setMeetingId] = useState<number | null>(null)
   const [elapsedMs, setElapsedMs] = useState(0)
-  const [level, setLevel] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [isQuiet, setIsQuiet] = useState(false)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+  const micStreamRef = useRef<MediaStream | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const rafRef = useRef<number | null>(null)
@@ -60,6 +97,11 @@ export function useRecorder() {
   const meetingIdRef = useRef<number | null>(null)
   const uploadChainRef = useRef<Promise<void>>(Promise.resolve())
   const stopResolveRef = useRef<(() => void) | null>(null)
+  const isQuietRef = useRef(false)
+  const quietSinceRef = useRef<number | null>(null)
+  const loudSinceRef = useRef<number | null>(null)
+  const waveRef = useRef(new Float32Array(WAVE_BARS))
+  const lastWaveAtRef = useRef(0)
 
   const cleanupMedia = useCallback(() => {
     if (rafRef.current != null) {
@@ -75,12 +117,17 @@ export function useRecorder() {
       void audioCtxRef.current.close().catch(() => {})
       audioCtxRef.current = null
     }
-    if (streamRef.current) {
-      for (const track of streamRef.current.getTracks()) track.stop()
-      streamRef.current = null
+    if (micStreamRef.current) {
+      for (const track of micStreamRef.current.getTracks()) track.stop()
+      micStreamRef.current = null
     }
     mediaRecorderRef.current = null
-    setLevel(0)
+    quietSinceRef.current = null
+    loudSinceRef.current = null
+    isQuietRef.current = false
+    waveRef.current.fill(0)
+    lastWaveAtRef.current = 0
+    setIsQuiet(false)
   }, [])
 
   useEffect(() => () => cleanupMedia(), [cleanupMedia])
@@ -96,17 +143,32 @@ export function useRecorder() {
       })
   }, [])
 
-  const startLevelMeter = useCallback((stream: MediaStream) => {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+  /** Mic → gain → analyser (meter) + MediaStreamDestination (what we record). */
+  const startBoostedCapture = useCallback(async (micStream: MediaStream) => {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext
     const ctx = new AudioCtx()
-    const source = ctx.createMediaStreamSource(stream)
+    if (ctx.state === 'suspended') await ctx.resume()
+
+    const source = ctx.createMediaStreamSource(micStream)
+    const gain = ctx.createGain()
+    gain.gain.value = MIC_GAIN
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 256
-    source.connect(analyser)
+    const dest = ctx.createMediaStreamDestination()
+
+    source.connect(gain)
+    gain.connect(analyser)
+    gain.connect(dest)
+
     audioCtxRef.current = ctx
     analyserRef.current = analyser
 
     const data = new Uint8Array(analyser.fftSize)
+    const quietLevel = 0.02
+    const dwellMs = 1000
     const tick = () => {
       const node = analyserRef.current
       if (!node) return
@@ -116,10 +178,43 @@ export function useRecorder() {
         const v = Math.abs(data[i]! - 128) / 128
         if (v > peak) peak = v
       }
-      setLevel(peak)
+
+      const now = performance.now()
+      if (now - lastWaveAtRef.current >= WAVE_PUSH_MS) {
+        lastWaveAtRef.current = now
+        const wave = waveRef.current
+        const prev = wave[wave.length - 1] ?? 0
+        wave.copyWithin(0, 1)
+        wave[wave.length - 1] = prev * 0.22 + peak * 0.78
+      }
+
+      if (peak < quietLevel) {
+        loudSinceRef.current = null
+        if (quietSinceRef.current == null) quietSinceRef.current = now
+        if (
+          !isQuietRef.current &&
+          now - quietSinceRef.current >= dwellMs
+        ) {
+          isQuietRef.current = true
+          setIsQuiet(true)
+        }
+      } else {
+        quietSinceRef.current = null
+        if (loudSinceRef.current == null) loudSinceRef.current = now
+        if (
+          isQuietRef.current &&
+          now - loudSinceRef.current >= dwellMs
+        ) {
+          isQuietRef.current = false
+          setIsQuiet(false)
+        }
+      }
+
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
+
+    return dest.stream
   }, [])
 
   const start = useCallback(
@@ -135,9 +230,12 @@ export function useRecorder() {
         meetingIdRef.current = meeting.id
         setMeetingId(meeting.id)
 
-        let stream: MediaStream
+        let micStream: MediaStream
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          if (!navigator.mediaDevices?.getUserMedia) {
+            throw new Error('mediaDevices unavailable')
+          }
+          micStream = await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS)
         } catch (err) {
           setError(micErrorMessage(err))
           setPhase('idle')
@@ -146,13 +244,13 @@ export function useRecorder() {
           return
         }
 
-        streamRef.current = stream
-        startLevelMeter(stream)
+        micStreamRef.current = micStream
+        const recordStream = await startBoostedCapture(micStream)
 
         const mimeType = pickMimeType()
         const recorder = mimeType
-          ? new MediaRecorder(stream, { mimeType })
-          : new MediaRecorder(stream)
+          ? new MediaRecorder(recordStream, { mimeType })
+          : new MediaRecorder(recordStream)
         mediaRecorderRef.current = recorder
 
         recorder.ondataavailable = (ev: BlobEvent) => {
@@ -185,7 +283,7 @@ export function useRecorder() {
         setPhase('idle')
       }
     },
-    [cleanupMedia, enqueueChunk, phase, startLevelMeter],
+    [cleanupMedia, enqueueChunk, phase, startBoostedCapture],
   )
 
   const stop = useCallback(async (): Promise<number | null> => {
@@ -234,7 +332,8 @@ export function useRecorder() {
     phase,
     meetingId,
     elapsedMs,
-    level,
+    waveSamples: waveRef,
+    isQuiet,
     error,
     start,
     stop,

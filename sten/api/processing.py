@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import traceback
 from pathlib import Path
 
 from sten import db, pipeline
@@ -39,7 +40,7 @@ def start_processing(meeting_id: int) -> None:
 
 
 def load_items_from_output(out_dir: Path) -> list[tuple[str, str, str]]:
-    """Read summary.json; raise RuntimeError if transcript or items are empty.
+    """Read summary.json. Empty items are allowed while the protocol is off.
 
     Returns list of (text, category, theme).
     """
@@ -57,10 +58,6 @@ def load_items_from_output(out_dir: Path) -> list[tuple[str, str, str]]:
         raise RuntimeError(
             "В записи не распознана речь. Проверьте, что выбран нужный микрофон "
             "и на записи есть голос (хотя бы 20–30 секунд разговора)."
-        )
-    if not items:
-        raise RuntimeError(
-            "Речь распознана, но пункты саммари пустые. Попробуйте записать дольше."
         )
     return items
 
@@ -109,10 +106,7 @@ def _diarize_meeting(meeting_id: int) -> None:
 
         wav = out_dir / "audio.wav"
         if not wav.exists():
-            webm = out_dir / "audio.webm"
-            if not webm.exists():
-                raise RuntimeError("Нет аудиофайла для диаризации")
-            to_wav16k(webm, wav)
+            to_wav16k(db.find_source_audio(meeting_id), wav)
 
         raw = json.loads(tj.read_text(encoding="utf-8"))
         segments = [
@@ -153,6 +147,7 @@ def _resummarize_meeting(meeting_id: int) -> None:
         from sten.transcribe import Segment
 
         db.set_meeting_status(meeting_id, "processing")
+        db.set_meeting_progress(meeting_id, 4, "Саммаризация…", pipeline.overall_percent(4, 0.0))
         out_dir = Path(db.DATA_DIR) / "meetings" / str(meeting_id)
         tj = out_dir / "transcript.json"
         if not tj.exists():
@@ -167,7 +162,12 @@ def _resummarize_meeting(meeting_id: int) -> None:
             )
             for s in raw
         ]
-        items = summarize(segments)
+        items = summarize(
+            segments,
+            on_progress=lambda frac: db.set_meeting_progress(
+                meeting_id, 4, "Саммаризация…", pipeline.overall_percent(4, frac)
+            ),
+        )
         if not items:
             raise RuntimeError(
                 "Пункты саммари пустые после пересборки. Проверьте транскрипт."
@@ -190,12 +190,17 @@ def _process_meeting(meeting_id: int) -> None:
     try:
         db.set_meeting_status(meeting_id, "processing")
         out_dir = Path(db.DATA_DIR) / "meetings" / str(meeting_id)
-        audio_path = out_dir / "audio.webm"
-        pipeline.run(audio_path, out_dir)
+        audio_path = db.find_source_audio(meeting_id)
+
+        def on_stage(step: int, total: int, label: str, percent: int = 0) -> None:
+            db.set_meeting_progress(meeting_id, step, label, percent)
+
+        pipeline.run(audio_path, out_dir, on_stage=on_stage)
         items = load_items_from_output(out_dir)
         db.replace_items(meeting_id, items)
         db.set_meeting_status(meeting_id, "ready")
     except Exception as exc:
+        traceback.print_exc()
         db.set_meeting_status(meeting_id, "error", error=str(exc)[:500])
     finally:
         with _lock:

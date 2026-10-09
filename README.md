@@ -57,7 +57,7 @@ chmod +x scripts/serve.sh scripts/deploy-remote.sh
 3. Ставит Python-зависимости в удалённый `.venv`
 4. Поднимает Ollama при необходимости и перезапускает uvicorn на `0.0.0.0:8000`
 
-URL: **http://10.91.0.142:8000**
+URL: **https://10.91.0.142/**
 
 Модели на сервере (через `scripts/serve.sh` / `env.sh`):
 
