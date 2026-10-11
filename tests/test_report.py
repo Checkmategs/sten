@@ -82,3 +82,22 @@ def test_build_report_single_chunk(monkeypatch):
     assert report.title == "Тема"
     assert report.participants[0].name == "Анна"
     assert report.participants[0].role == ""
+
+
+def test_build_report_retries_when_json_is_cut(monkeypatch):
+    calls: list[str] = []
+
+    def fake_generate(prompt, *, schema=None, model=None, **kwargs):
+        calls.append(prompt)
+        if len(calls) == 1:
+            return '{"title": "Оборвалось'
+        return (
+            '{"title":"Тема","summary":"Кратко","outcome":"",'
+            '"participants":[],"topics":[],"decisions":[],"tasks":[]}'
+        )
+
+    monkeypatch.setattr(report_mod, "generate", fake_generate)
+    report = build_report([Segment(0.0, 1.0, "Короткий разговор")])
+    assert report.title == "Тема"
+    assert len(calls) == 2
+    assert "оборвался" in calls[1]

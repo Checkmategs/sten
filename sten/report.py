@@ -133,7 +133,8 @@ _MAP_CTX = 4096
 _REPORT_CTX = 8192
 # Короткий список фактов и компактный JSON. Длинный лимит заставлял модель писать лишнее.
 _MAP_PREDICT = 512
-_REPORT_PREDICT = 1024
+# 1024 токена qwen3.5:9b не хватало, чтобы закрыть JSON (обрыв около 1000 токенов).
+_REPORT_PREDICT = 2048
 
 
 @dataclass
@@ -353,6 +354,32 @@ def _labeled_segments(segments: list[Segment]) -> list[Segment]:
     return labeled
 
 
+_RETRY_NOTE = (
+    "\n\nПредыдущий ответ оборвался и не был законченным JSON. "
+    "Верни один короткий объект: не больше трёх тем, пяти решений и пяти задач. "
+    "Каждую строку закрой."
+)
+
+
+def _generate_report(prompt: str) -> MeetingReport:
+    raw = generate(
+        prompt,
+        schema=REPORT_SCHEMA,
+        num_ctx=_REPORT_CTX,
+        num_predict=_REPORT_PREDICT,
+    )
+    try:
+        return parse_report(raw)
+    except ValueError:
+        raw = generate(
+            prompt + _RETRY_NOTE,
+            schema=REPORT_SCHEMA,
+            num_ctx=_REPORT_CTX,
+            num_predict=_REPORT_PREDICT,
+        )
+        return parse_report(raw)
+
+
 def build_report(
     segments: list[Segment],
     on_progress: Callable[[float], None] | None = None,
@@ -372,14 +399,9 @@ def build_report(
 
     if len(chunks) == 1:
         tick(0.0)
-        raw = generate(
-            hint + _SINGLE_PROMPT.format(chunk=chunks[0]),
-            schema=REPORT_SCHEMA,
-            num_ctx=_REPORT_CTX,
-            num_predict=_REPORT_PREDICT,
-        )
+        report = _generate_report(hint + _SINGLE_PROMPT.format(chunk=chunks[0]))
         tick(1.0)
-        return parse_report(raw)
+        return report
 
     n_map = len(chunks)
     partials: list[str] = []
@@ -407,14 +429,11 @@ def build_report(
             )
         partials = next_partials
     tick(n_map / (n_map + 1))
-    raw = generate(
-        hint + _REDUCE_PROMPT.format(partials="\n\n---\n\n".join(partials)),
-        schema=REPORT_SCHEMA,
-        num_ctx=_REPORT_CTX,
-        num_predict=_REPORT_PREDICT,
+    report = _generate_report(
+        hint + _REDUCE_PROMPT.format(partials="\n\n---\n\n".join(partials))
     )
     tick(1.0)
-    return parse_report(raw)
+    return report
 
 
 def _batch_partials(partials: list[str]) -> list[str]:

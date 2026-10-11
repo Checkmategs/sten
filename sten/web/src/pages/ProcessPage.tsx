@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, type MeetingStatus, type ProcessProgress } from '../api'
+import { api, type MeetingMaterials, type MeetingStatus, type ProcessProgress } from '../api'
+import { advanceDisplayedPercent, createPercentMotion } from '../progressMotion'
 
 const STATUS_LABELS: Record<MeetingStatus, string> = {
   recording: 'Запись',
@@ -31,8 +32,14 @@ export function ProcessPage() {
   const [line, setLine] = useState(0)
   const [linePhase, setLinePhase] = useState<'in' | 'out'>('in')
   const [opening, setOpening] = useState(false)
+  const [visual, setVisual] = useState(0)
   const openingRef = useRef(false)
   const aliveRef = useRef(true)
+  const serverPercentRef = useRef(0)
+  const liveRef = useRef(false)
+  const motionRef = useRef(createPercentMotion())
+  const destinationRef = useRef<MeetingMaterials | 'plain' | null>(null)
+  const leftRef = useRef(false)
 
   useEffect(() => {
     headingRef.current?.focus()
@@ -55,10 +62,10 @@ export function ProcessPage() {
         try {
           const materials = await api.loadMeetingMaterials(meetingId)
           if (!aliveRef.current) return
-          navigate(`/m/${meetingId}/consensus`, { replace: true, state: { materials } })
+          destinationRef.current = materials
         } catch {
           if (!aliveRef.current) return
-          navigate(`/m/${meetingId}/consensus`, { replace: true })
+          destinationRef.current = 'plain'
         }
         return
       }
@@ -77,14 +84,55 @@ export function ProcessPage() {
 
   useEffect(() => {
     void poll()
-    const timer = window.setInterval(() => void poll(), 2000)
+    const timer = window.setInterval(() => void poll(), 1000)
     return () => window.clearInterval(timer)
   }, [poll])
+
+  serverPercentRef.current = progress?.percent ?? 0
+  liveRef.current = status === 'processing' && !opening && !loadError
+
+  useEffect(() => {
+    motionRef.current = createPercentMotion()
+    destinationRef.current = null
+    leftRef.current = false
+    setVisual(0)
+  }, [meetingId])
+
+  useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    let raf = 0
+    let last = performance.now()
+    const frame = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000)
+      last = now
+      const finishing = openingRef.current
+      const goal = finishing ? 100 : serverPercentRef.current
+      const live = liveRef.current
+      if (finishing || live) {
+        if (reduce) motionRef.current.value = goal
+        else advanceDisplayedPercent(motionRef.current, goal, dt, live && !finishing)
+        const next = motionRef.current.value
+        setVisual((current) => (Math.abs(current - next) < 0.05 ? current : next))
+      }
+      const destination = destinationRef.current
+      if (destination && motionRef.current.value >= 99.5 && !leftRef.current) {
+        leftRef.current = true
+        if (destination === 'plain') {
+          navigate(`/m/${meetingId}/consensus`, { replace: true })
+        } else {
+          navigate(`/m/${meetingId}/consensus`, { replace: true, state: { materials: destination } })
+        }
+      }
+      raf = requestAnimationFrame(frame)
+    }
+    raf = requestAnimationFrame(frame)
+    return () => cancelAnimationFrame(raf)
+  }, [meetingId, navigate])
 
   const showFlavor =
     status === 'processing' && !opening && !loadError && progress?.step !== 3
   const diarizing = status === 'processing' && !opening && !loadError && progress?.step === 3
-  const percent = progress?.percent ?? 0
+  const percent = Math.round(visual)
 
   useEffect(() => {
     if (!showFlavor) return
@@ -148,7 +196,7 @@ export function ProcessPage() {
             <circle className="process-loader-track" cx="50" cy="50" r="42" />
             <circle className="process-loader-arc" cx="50" cy="50" r="42" />
           </svg>
-          {showFlavor || diarizing || (opening && percent > 0) ? (
+          {showFlavor || diarizing || opening ? (
             <span className="process-percent" aria-hidden="true">
               {percent}%
             </span>

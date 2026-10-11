@@ -25,6 +25,8 @@ def test_generate_disables_thinking_and_caps_tokens(monkeypatch):
     assert captured["json"]["think"] is False
     assert captured["json"]["options"]["num_predict"] == 128
     assert captured["json"]["options"]["num_ctx"] == 8192
+    assert captured["json"]["options"]["presence_penalty"] == 0
+    assert captured["json"]["options"]["repeat_penalty"] == 1.0
 
 
 @pytest.mark.integration

@@ -15,13 +15,13 @@ from sten.speakers import seed_speakers
 from sten.transcribe import Segment, gpu_memory_free_mib, transcribe, transcript_text
 
 _CATEGORY_ORDER = ("decision", "task", "topic", "question")
-# Diarization takes about as long as transcription, so it owns the long stretch
-# of the bar. The meeting brief keeps a short tail.
+# Shares follow typical time: transcription and diarization are the long middle,
+# and the brief keeps a wide tail so the bar can keep moving while the model writes.
 _STAGE_RANGE = {
-    1: (0, 8),
-    2: (8, 46),
-    3: (46, 96),
-    4: (96, 99),
+    1: (0, 5),
+    2: (5, 38),
+    3: (38, 70),
+    4: (70, 99),
 }
 _STAGE_TOTAL = 4
 DIARIZE_LABEL = "Идёт разметка спикеров…"
@@ -133,6 +133,8 @@ def run(
     def report(step: int, label: str, fraction: float = 0.0) -> None:
         nonlocal last_pct
         pct = overall_percent(step, fraction)
+        if pct < last_pct:
+            return
         if pct == last_pct and fraction not in (0.0, 1.0):
             return
         last_pct = pct
@@ -182,7 +184,7 @@ def run(
         stop_creep = threading.Event()
 
         def creep() -> None:
-            while not stop_creep.wait(1.0):
+            while not stop_creep.wait(0.4):
                 report(
                     3,
                     DIARIZE_LABEL,
@@ -214,10 +216,30 @@ def run(
 
     print("4/4 Обзор совещания...")
     report(4, "Обзор совещания…", 0.0)
-    meeting_report = build_report(
-        segments,
-        on_progress=lambda frac: report(4, "Обзор совещания…", frac),
-    )
+    # The model call is one blocking request. Creep the brief's share of the
+    # bar until it returns, and never run backwards if a chunk finishes first.
+    report_estimate = max(20.0, asr_seconds)
+    report_started = time.time()
+    stop_report = threading.Event()
+
+    def creep_report() -> None:
+        while not stop_report.wait(0.4):
+            report(
+                4,
+                "Обзор совещания…",
+                diarize_creep(time.time() - report_started, report_estimate),
+            )
+
+    report_creeper = threading.Thread(target=creep_report, daemon=True)
+    report_creeper.start()
+    try:
+        meeting_report = build_report(
+            segments,
+            on_progress=lambda frac: report(4, "Обзор совещания…", frac),
+        )
+    finally:
+        stop_report.set()
+        report_creeper.join(timeout=2)
     write_outputs(out_dir, segments, report_to_items(meeting_report), meeting_report)
     seed_speakers(out_dir, segments)
     report(4, "Обзор совещания…", 1.0)

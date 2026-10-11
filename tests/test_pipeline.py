@@ -28,13 +28,13 @@ def _stub_meeting_report(monkeypatch):
 
 def test_overall_percent_maps_stages():
     assert overall_percent(1, 0.0) == 0
-    assert overall_percent(1, 1.0) == 8
-    assert overall_percent(2, 0.0) == 8
-    assert overall_percent(2, 0.5) == 27
-    assert overall_percent(2, 1.0) == 46
-    assert overall_percent(3, 0.0) == 46
-    assert overall_percent(3, 1.0) == 96
-    assert overall_percent(4, 0.0) == 96
+    assert overall_percent(1, 1.0) == 5
+    assert overall_percent(2, 0.0) == 5
+    assert overall_percent(2, 0.5) == 22
+    assert overall_percent(2, 1.0) == 38
+    assert overall_percent(3, 0.0) == 38
+    assert overall_percent(3, 1.0) == 70
+    assert overall_percent(4, 0.0) == 70
     assert overall_percent(4, 1.0) == 99
 
 
@@ -68,9 +68,46 @@ def test_run_keeps_diarize_bar_moving(tmp_path: Path, monkeypatch):
     run(audio, tmp_path / "out", on_stage=on_stage)
 
     diar = [row for row in seen if row[0] == 3]
-    assert diar[0] == (3, "Идёт разметка спикеров…", 46)
-    assert any(46 < pct < 96 for _, _, pct in diar)
-    assert diar[-1] == (3, "Идёт разметка спикеров…", 96)
+    assert diar[0] == (3, "Идёт разметка спикеров…", 38)
+    assert any(38 < pct < 70 for _, _, pct in diar)
+    assert diar[-1] == (3, "Идёт разметка спикеров…", 70)
+    report = [row for row in seen if row[0] == 4]
+    assert report[0][2] == 70
+    assert report[-1][2] == 99
+    assert all(report[i][2] <= report[i + 1][2] for i in range(len(report) - 1))
+
+
+def test_run_keeps_report_bar_moving(tmp_path: Path, monkeypatch):
+    import time
+
+    audio = tmp_path / "in.webm"
+    audio.write_bytes(b"x")
+    plain = [Segment(0.0, 1.0, "Привет")]
+    monkeypatch.setattr("sten.pipeline.to_wav16k", lambda src, dest: tmp_path / "audio.wav")
+    monkeypatch.setattr(
+        "sten.pipeline.transcribe", lambda wav_path, on_progress=None, **_kwargs: plain
+    )
+    monkeypatch.setattr("sten.diarize.diarize_wav", lambda wav_path, device_index=None: [])
+
+    def slow_report(segments, on_progress=None):
+        time.sleep(1.4)
+        if on_progress is not None:
+            on_progress(1.0)
+        return MeetingReport()
+
+    monkeypatch.setattr("sten.pipeline.build_report", slow_report)
+    seen: list[int] = []
+
+    def on_stage(step: int, total: int, label: str, pct: int) -> None:
+        if step == 4:
+            seen.append(pct)
+
+    run(audio, tmp_path / "out", on_stage=on_stage)
+
+    assert seen[0] == 70
+    assert any(70 < pct < 99 for pct in seen)
+    assert seen[-1] == 99
+    assert all(seen[i] <= seen[i + 1] for i in range(len(seen) - 1))
 
 
 def test_diarize_creep_advances_then_holds_short_of_done():

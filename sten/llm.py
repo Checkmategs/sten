@@ -11,7 +11,15 @@ def generate(
     num_ctx: int = 8192,
     num_predict: int | None = None,
 ) -> str:
-    options: dict = {"temperature": 0.2, "num_ctx": num_ctx}
+    # Модельный presence_penalty (у qwen3.5:9b это 1.5) штрафует повтор кавычек
+    # и скобок, и JSON обрывается внутри строки. Для схемы штраф отключаем.
+    options: dict = {
+        "temperature": 0.2,
+        "num_ctx": num_ctx,
+        "presence_penalty": 0,
+        "frequency_penalty": 0,
+        "repeat_penalty": 1.0,
+    }
     if num_predict is not None:
         options["num_predict"] = num_predict
     payload = {
