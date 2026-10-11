@@ -17,6 +17,21 @@ _LIGHTER_COMPUTE = {
 }
 
 _TIME_MARKER_INTERVAL = 300
+_WHISPER_BATCH_SIZE = 8
+_BATCH_LADDER = (8, 4, 2, 1)
+# Weights plus activation headroom for batch 1, then extra MiB per additional
+# slot. large-v3 float16 at batch 8 needs ~11 GiB; the cards here often have
+# only a few GiB free because other models already occupy them.
+_COMPUTE_NEED_MIB = {
+    "float32": (7000, 800),
+    "float16": (6000, 700),
+    "bfloat16": (6000, 700),
+    "default": (6000, 700),
+    "int8_float16": (4200, 500),
+    "int8": (3200, 400),
+}
+_GPU_MARGIN_MIB = 1024
+_MIN_GPU_FREE_MIB = 2200
 
 
 @dataclass
@@ -105,30 +120,55 @@ def gpu_memory_free_mib() -> list[tuple[int, int]]:
     return rows
 
 
+def _memory_need_mib(compute_type: str, batch_size: int) -> int:
+    base, per_slot = _COMPUTE_NEED_MIB.get(compute_type, (6000, 700))
+    slots = max(1, batch_size)
+    return base + (slots - 1) * per_slot + _GPU_MARGIN_MIB
+
+
+def _largest_fitting_batch(compute_type: str, free_mib: int) -> int | None:
+    for batch_size in _BATCH_LADDER:
+        if free_mib >= _memory_need_mib(compute_type, batch_size):
+            return batch_size
+    return None
+
+
+def _compute_ladder(compute_type: str) -> list[str]:
+    ladder = [compute_type, *_LIGHTER_COMPUTE.get(compute_type, ("int8",))]
+    unique: list[str] = []
+    for item in ladder:
+        if item not in unique:
+            unique.append(item)
+    return unique
+
+
 def whisper_device_plan(
     compute_type: str,
     gpus: list[tuple[int, int]] | None = None,
-) -> list[tuple[str, int | None, str]]:
-    """Load attempts as (device, device_index, compute_type).
+) -> list[tuple[str, int | None, str, int]]:
+    """Load attempts as (device, device_index, compute_type, batch_size).
 
-    The requested precision runs on the GPU with the most free memory.
-    If that raises a CUDA out-of-memory error, the caller tries a lighter
-    precision on the same GPU, then int8 on CPU.
+    The requested precision runs on the GPU with the most free memory, at the
+    largest batch that should fit. Lighter precisions are fallbacks. int8 on
+    CPU is last: large-v3 there is many times slower than any GPU batch.
     """
     if gpus is None:
         gpus = gpu_memory_free_mib()
     else:
         gpus = sorted(gpus, key=lambda item: (-item[1], item[0]))
-    plan: list[tuple[str, int | None, str]] = []
+    plan: list[tuple[str, int | None, str, int]] = []
     if gpus:
-        index = gpus[0][0]
-        plan.append(("cuda", index, compute_type))
-        for fallback in _LIGHTER_COMPUTE.get(compute_type, ("int8",)):
-            plan.append(("cuda", index, fallback))
+        index, free_mib = gpus[0]
+        for candidate in _compute_ladder(compute_type):
+            batch_size = _largest_fitting_batch(candidate, free_mib)
+            if batch_size is not None:
+                plan.append(("cuda", index, candidate, batch_size))
+        if not any(item[2] == "int8" for item in plan) and free_mib >= _MIN_GPU_FREE_MIB:
+            plan.append(("cuda", index, "int8", 1))
     else:
-        plan.append(("auto", None, compute_type))
-    plan.append(("cpu", None, "int8"))
-    unique: list[tuple[str, int | None, str]] = []
+        plan.append(("auto", None, compute_type, _WHISPER_BATCH_SIZE))
+    plan.append(("cpu", None, "int8", _WHISPER_BATCH_SIZE))
+    unique: list[tuple[str, int | None, str, int]] = []
     for item in plan:
         if item not in unique:
             unique.append(item)
@@ -144,12 +184,55 @@ def _load_whisper(model_name: str, device: str, device_index: int | None, comput
     return WhisperModel(model_name, **kwargs)
 
 
+def _make_transcriber(model):
+    """Batched GPU inference. Timestamps stay on so speakers can be aligned."""
+    from faster_whisper import BatchedInferencePipeline
+
+    return BatchedInferencePipeline(model=model)
+
+
+def _release_model(model, device_index: int | None) -> None:
+    """Drop a Whisper model and ask CUDA to return cached blocks."""
+    if model is not None:
+        del model
+    gc.collect()
+    if device_index is None:
+        return
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            with torch.cuda.device(device_index):
+                torch.cuda.empty_cache()
+    except Exception:
+        return
+
+
+def _batch_ladder(start: int) -> list[int]:
+    ladder: list[int] = []
+    batch_size = max(1, start)
+    while batch_size not in ladder:
+        ladder.append(batch_size)
+        if batch_size == 1:
+            break
+        batch_size = max(1, batch_size // 2)
+    return ladder
+
+
 def _transcribe_loaded(
     model,
     wav: Path,
     on_progress: Callable[[float], None] | None,
+    batch_size: int = _WHISPER_BATCH_SIZE,
 ) -> list[Segment]:
-    raw_segments, info = model.transcribe(str(wav), language="ru", vad_filter=True)
+    transcriber = _make_transcriber(model)
+    raw_segments, info = transcriber.transcribe(
+        str(wav),
+        language="ru",
+        vad_filter=True,
+        without_timestamps=False,
+        batch_size=batch_size,
+    )
     duration = float(getattr(info, "duration", 0.0) or 0.0)
     out: list[Segment] = []
     last_reported = -1.0
@@ -170,15 +253,32 @@ def transcribe(
     wav: Path,
     model_name: str = WHISPER_MODEL,
     on_progress: Callable[[float], None] | None = None,
+    gpus: list[tuple[int, int]] | None = None,
 ) -> list[Segment]:
     last_oom: BaseException | None = None
-    for device, device_index, compute_type in whisper_device_plan(WHISPER_COMPUTE):
+    for attempt in whisper_device_plan(WHISPER_COMPUTE, gpus=gpus):
+        device, device_index, compute_type, *rest = attempt
+        start_batch = rest[0] if rest else _WHISPER_BATCH_SIZE
         where = device if device_index is None else f"{device}:{device_index}"
-        print(f"    whisper {model_name} на {where}, {compute_type}", flush=True)
         model = None
         try:
             model = _load_whisper(model_name, device, device_index, compute_type)
-            return _transcribe_loaded(model, wav, on_progress)
+            for batch_size in _batch_ladder(start_batch):
+                print(
+                    f"    whisper {model_name} на {where}, {compute_type}, batch {batch_size}",
+                    flush=True,
+                )
+                try:
+                    return _transcribe_loaded(model, wav, on_progress, batch_size=batch_size)
+                except Exception as exc:
+                    if device == "cpu" or not is_cuda_oom(exc):
+                        raise
+                    last_oom = exc
+                    print(
+                        f"    на GPU не хватило памяти ({where}, {compute_type}, batch {batch_size}), пробую иначе",
+                        flush=True,
+                    )
+                    gc.collect()
         except Exception as exc:
             if device == "cpu" or not is_cuda_oom(exc):
                 raise
@@ -188,9 +288,9 @@ def transcribe(
                 flush=True,
             )
         finally:
-            if model is not None:
-                del model
-            gc.collect()
+            held = model
+            model = None
+            _release_model(held, device_index if device == "cuda" else None)
     if last_oom is not None:
         raise last_oom
     raise RuntimeError("Не удалось загрузить модель распознавания")

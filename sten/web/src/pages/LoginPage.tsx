@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type AnimationEvent, type FormEvent } from 'react'
 import { api, type AuthUser } from '../api'
 import { WaveCanvas } from '../components/WaveCanvas'
 
@@ -21,21 +21,40 @@ function errorText(error: unknown): string {
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [screen, setScreen] = useState<'login' | 'register'>('login')
+  const [phase, setPhase] = useState<'idle' | 'out' | 'in'>('idle')
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const submit = async (event: FormEvent) => {
+  const openRegister = () => {
+    if (busy || phase === 'out' || screen === 'register') return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduce) {
+      setScreen('register')
+      setError(null)
+      return
+    }
+    setPhase('out')
+  }
+
+  const onFadeEnd = (event: AnimationEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget || event.animationName !== 'login-fade-out') return
+    setScreen('register')
+    setError(null)
+    setPhase('in')
+  }
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setBusy(true)
     setError(null)
     try {
       const user =
-        mode === 'login'
-          ? await api.login(name.trim(), password)
-          : await api.register(name.trim(), password)
+        screen === 'register'
+          ? await api.register(name.trim(), password)
+          : await api.login(name.trim(), password)
       onLogin(user)
     } catch (err) {
       setError(errorText(err))
@@ -48,67 +67,53 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     <div className="app-shell">
       <WaveCanvas />
       <main className="login-card">
-        <h1>Sten</h1>
-        <p className="login-lead">Встречи видны только своему пользователю.</p>
-        <div className="login-switch" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'login'}
-            className={mode === 'login' ? 'is-on' : ''}
-            onClick={() => {
-              setMode('login')
-              setError(null)
-            }}
-          >
-            Войти
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'register'}
-            className={mode === 'register' ? 'is-on' : ''}
-            onClick={() => {
-              setMode('register')
-              setError(null)
-            }}
-          >
-            Регистрация
-          </button>
-        </div>
-        <form onSubmit={(event) => void submit(event)}>
-          <label>
-            Имя
+        <div
+          className={phase === 'out' ? 'login-stage is-out' : phase === 'in' ? 'login-stage is-in' : 'login-stage'}
+          onAnimationEnd={onFadeEnd}
+        >
+          <h1>{screen === 'login' ? 'Welcome to Sten' : 'Начните работу'}</h1>
+          <form onSubmit={(event) => void submit(event)}>
             <input
               name="name"
               autoComplete="username"
+              placeholder="Имя пользователя"
+              aria-label="Имя пользователя"
               value={name}
               maxLength={40}
               required
               onChange={(event) => setName(event.target.value)}
             />
-          </label>
-          <label>
-            Пароль
             <input
               name="password"
               type="password"
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              autoComplete={screen === 'login' ? 'current-password' : 'new-password'}
+              placeholder="Пароль"
+              aria-label="Пароль"
               value={password}
               minLength={6}
               required
               onChange={(event) => setPassword(event.target.value)}
             />
-          </label>
-          {error ? (
-            <p className="login-error" role="alert">
-              {error}
-            </p>
-          ) : null}
-          <button type="submit" className="record-btn record-btn-start" disabled={busy}>
-            {mode === 'login' ? 'Войти' : 'Создать аккаунт'}
-          </button>
-        </form>
+            {error ? (
+              <p className="login-error" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <button type="submit" className="record-btn record-btn-start" disabled={busy}>
+              {screen === 'login' ? 'Войти' : 'Создать аккаунт'}
+            </button>
+            <button
+              type="button"
+              className={screen === 'login' ? 'login-register' : 'login-register is-reserved'}
+              disabled={busy || screen !== 'login'}
+              tabIndex={screen === 'login' ? 0 : -1}
+              aria-hidden={screen !== 'login'}
+              onClick={openRegister}
+            >
+              Регистрация
+            </button>
+          </form>
+        </div>
       </main>
     </div>
   )

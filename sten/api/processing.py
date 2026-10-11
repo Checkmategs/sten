@@ -143,11 +143,12 @@ def _diarize_meeting(meeting_id: int) -> None:
 def _resummarize_meeting(meeting_id: int) -> None:
     global _busy_meeting_id
     try:
-        from sten.summarize import summarize
         from sten.transcribe import Segment
 
         db.set_meeting_status(meeting_id, "processing")
-        db.set_meeting_progress(meeting_id, 4, "Саммаризация…", pipeline.overall_percent(4, 0.0))
+        db.set_meeting_progress(
+            meeting_id, 4, "Обзор совещания…", pipeline.overall_percent(4, 0.0)
+        )
         out_dir = Path(db.DATA_DIR) / "meetings" / str(meeting_id)
         tj = out_dir / "transcript.json"
         if not tj.exists():
@@ -162,17 +163,20 @@ def _resummarize_meeting(meeting_id: int) -> None:
             )
             for s in raw
         ]
-        items = summarize(
+        from sten.report import build_report, report_is_blank, report_to_items
+
+        meeting_report = build_report(
             segments,
             on_progress=lambda frac: db.set_meeting_progress(
-                meeting_id, 4, "Саммаризация…", pipeline.overall_percent(4, frac)
+                meeting_id, 4, "Обзор совещания…", pipeline.overall_percent(4, frac)
             ),
         )
-        if not items:
+        if report_is_blank(meeting_report):
             raise RuntimeError(
-                "Пункты саммари пустые после пересборки. Проверьте транскрипт."
+                "Обзор встречи пустой после пересборки. Проверьте транскрипт."
             )
-        pipeline.write_outputs(out_dir, segments, items)
+        items = report_to_items(meeting_report)
+        pipeline.write_outputs(out_dir, segments, items, meeting_report)
         db.replace_items(
             meeting_id, [(i.text, i.category, i.theme) for i in items]
         )

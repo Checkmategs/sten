@@ -24,6 +24,17 @@ _MIME_TO_EXT = {
     "audio/flac": "flac",
     "audio/x-flac": "flac",
     "video/mp4": "mp4",
+    "video/webm": "webm",
+    "video/x-matroska": "mkv",
+    "video/quicktime": "mov",
+    "video/x-msvideo": "avi",
+    "video/avi": "avi",
+    "video/mpeg": "mpeg",
+    "video/x-m4v": "m4v",
+    "video/3gpp": "3gp",
+    "video/3gpp2": "3gp",
+    "video/x-ms-wmv": "wmv",
+    "video/x-flv": "flv",
 }
 
 
@@ -43,9 +54,20 @@ def guess_audio_ext(filename: str, content_type: str, header: bytes) -> str | No
 
 def _sniff_audio_ext(header: bytes) -> str | None:
     if len(header) >= 12 and header[4:8] == b"ftyp":
-        return "m4a"
-    if header.startswith(b"RIFF") and header[8:12] == b"WAVE":
-        return "wav"
+        brand = header[8:12]
+        if brand == b"qt  ":
+            return "mov"
+        if brand in {b"M4V ", b"m4v "}:
+            return "m4v"
+        if brand in {b"M4A ", b"M4B "}:
+            return "m4a"
+        return "mp4"
+    if header.startswith(b"RIFF") and len(header) >= 12:
+        kind = header[8:12]
+        if kind == b"WAVE":
+            return "wav"
+        if kind == b"AVI ":
+            return "avi"
     if header.startswith(b"OggS"):
         return "ogg"
     if header.startswith(b"fLaC"):
@@ -54,6 +76,8 @@ def _sniff_audio_ext(header: bytes) -> str | None:
         return "caf"
     if header.startswith(b"\x1a\x45\xdf\xa3"):
         return "webm"
+    if header.startswith(b"FLV"):
+        return "flv"
     if header.startswith(b"ID3") or header[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2"):
         return "mp3"
     return None
@@ -69,6 +93,7 @@ def to_wav16k(src: Path, dst: Path) -> Path:
         proc = subprocess.run(
             [
                 "ffmpeg", "-nostdin", "-y", "-i", str(src),
+                "-vn", "-map", "0:a:0",
                 "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(write_to),
             ],
             capture_output=True,

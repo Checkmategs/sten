@@ -167,12 +167,9 @@ export function AppShell({ children, userName, onLogout }: AppShellProps) {
         >
           Новая встреча
         </Link>
-        <p className="nav-menu-label">История встреч</p>
         {listError ? (
           <p className="hist-empty">Не удалось загрузить встречи</p>
-        ) : meetings.length === 0 ? (
-          <p className="hist-empty">Пока нет записей</p>
-        ) : (
+        ) : meetings.length > 0 ? (
           <>
           <ul className="hist-list">
             {meetings.map((meeting) => (
@@ -231,7 +228,7 @@ export function AppShell({ children, userName, onLogout }: AppShellProps) {
             </p>
           ) : null}
           </>
-        )}
+        ) : null}
         <div className="nav-user">
           <span>{userName}</span>
           <button type="button" onClick={onLogout}>

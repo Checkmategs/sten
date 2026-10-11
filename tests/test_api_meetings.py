@@ -197,6 +197,28 @@ def test_upload_audio_mime_only_blob_becomes_mp3(client, tmp_path, monkeypatch):
     assert r.json()["filename"] == "audio.mp3"
 
 
+def test_upload_telemost_webm_and_mkv(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DATA_DIR", tmp_path / "data")
+    mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
+    webm = b"\x1a\x45\xdf\xa3" + b"telemost-video"
+    r = client.post(
+        f"/api/meetings/{mid}/audio",
+        files={"file": ("meeting.webm", webm, "video/webm")},
+    )
+    assert r.status_code == 200
+    assert r.json()["filename"] == "audio.webm"
+    saved = tmp_path / "data" / "meetings" / str(mid) / "audio.webm"
+    assert saved.read_bytes() == webm
+
+    mid2 = client.post("/api/meetings", json={"title": "B"}).json()["id"]
+    r = client.post(
+        f"/api/meetings/{mid2}/audio",
+        files={"file": ("talk.mkv", b"matroska", "video/x-matroska")},
+    )
+    assert r.status_code == 200
+    assert r.json()["filename"] == "audio.mkv"
+
+
 def test_upload_audio_rejects_exe(client):
     mid = client.post("/api/meetings", json={"title": "A"}).json()["id"]
     r = client.post(
@@ -397,3 +419,69 @@ def test_list_meetings_hides_empty_recordings(client):
 
     included = client.get("/api/meetings", params={"include_id": empty})
     assert empty in [item["id"] for item in included.json()]
+
+
+def _ready_meeting(client, tmp_path):
+    mid = client.post("/api/meetings", json={"title": "Планёрка"}).json()["id"]
+    out = tmp_path / "data" / "meetings" / str(mid)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "audio.webm").write_bytes(b"webm-bytes")
+    (out / "transcript.json").write_text(
+        '[{"start":0,"end":1.2,"text":"Привет","speaker":"Спикер 1"}]',
+        encoding="utf-8",
+    )
+    (out / "transcript.txt").write_text("Спикер 1: Привет", encoding="utf-8")
+    (out / "speakers.json").write_text(
+        '{"speakers": ["Спикер 1"]}', encoding="utf-8"
+    )
+    (out / "summary.json").write_text(
+        """
+        {"items": [], "report": {
+          "title": "Тема", "summary": "Кратко", "outcome": "Дальше",
+          "participants": [{"speaker": "Спикер 1", "role": "", "name": ""}],
+          "topics": [], "decisions": [], "tasks": []
+        }}
+        """,
+        encoding="utf-8",
+    )
+    return mid
+
+
+def test_report_audio_and_export(client, tmp_path):
+    mid = _ready_meeting(client, tmp_path)
+    report = client.get(f"/api/meetings/{mid}/report")
+    assert report.status_code == 200
+    assert report.json()["title"] == "Тема"
+    assert "Кратко" in report.json()["text"]
+
+    audio = client.get(f"/api/meetings/{mid}/audio")
+    assert audio.status_code == 200
+    assert audio.content == b"webm-bytes"
+    assert audio.headers["content-type"].startswith("audio/webm")
+
+    exported = client.get(f"/api/meetings/{mid}/export", params={"format": "srt"})
+    assert exported.status_code == 200
+    assert "Спикер 1: Привет" in exported.text
+    assert "filename*=UTF-8''" in exported.headers["content-disposition"]
+
+    docx = client.get(f"/api/meetings/{mid}/export", params={"format": "docx"})
+    assert docx.status_code == 200
+    assert docx.content[:2] == b"PK"
+
+
+def test_speaker_rename_and_blocked_delete(client, tmp_path):
+    mid = _ready_meeting(client, tmp_path)
+    renamed = client.post(
+        f"/api/meetings/{mid}/speakers/rename",
+        json={"source": "Спикер 1", "target": "Сергей"},
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["speakers"] == [{"name": "Сергей", "count": 1}]
+    assert renamed.json()["report"]["participants"][0]["speaker"] == "Сергей"
+
+    blocked = client.post(
+        f"/api/meetings/{mid}/speakers/delete",
+        json={"name": "Сергей"},
+    )
+    assert blocked.status_code == 409
+    assert "Сначала замените" in blocked.json()["detail"]

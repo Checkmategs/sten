@@ -1,5 +1,7 @@
 import argparse
 import json
+import math
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import asdict
@@ -8,16 +10,21 @@ from pathlib import Path
 from sten.audio import to_wav16k
 from sten.config import DATA_DIR, WHISPER_MODEL
 from sten.items import SummaryItem, category_label
-from sten.transcribe import Segment, transcribe, transcript_text
+from sten.report import MeetingReport, build_report, render_report_text, report_to_items
+from sten.speakers import seed_speakers
+from sten.transcribe import Segment, gpu_memory_free_mib, transcribe, transcript_text
 
 _CATEGORY_ORDER = ("decision", "task", "topic", "question")
+# Diarization takes about as long as transcription, so it owns the long stretch
+# of the bar. The meeting brief keeps a short tail.
 _STAGE_RANGE = {
     1: (0, 8),
-    2: (8, 60),
-    3: (60, 82),
-    4: (82, 99),
+    2: (8, 46),
+    3: (46, 96),
+    4: (96, 99),
 }
 _STAGE_TOTAL = 4
+DIARIZE_LABEL = "Идёт разметка спикеров…"
 
 
 def overall_percent(step: int, fraction: float = 0.0) -> int:
@@ -25,6 +32,30 @@ def overall_percent(step: int, fraction: float = 0.0) -> int:
     lo, hi = _STAGE_RANGE.get(step, (0, 0))
     fraction = max(0.0, min(1.0, fraction))
     return int(round(lo + (hi - lo) * fraction))
+
+
+def pipeline_devices(
+    gpus: list[tuple[int, int]],
+) -> tuple[list[tuple[int, int]] | None, int | None]:
+    """Give Whisper the freest GPU and diarization the next one.
+
+    With one GPU or none, diarization waits until Whisper has released memory.
+    ``gpus`` is the list from ``gpu_memory_free_mib`` (most free memory first).
+    """
+    if len(gpus) < 2:
+        return None, None
+    return [gpus[0]], gpus[1][0]
+
+
+def diarize_creep(elapsed: float, estimate: float) -> float:
+    """Grow through the diarization stage without reaching the end early.
+
+    At ``elapsed == estimate`` the fraction is about 0.63, then it slows and
+    caps at 0.92 until pyannote actually finishes.
+    """
+    estimate = max(float(estimate), 1.0)
+    elapsed = max(0.0, float(elapsed))
+    return min(0.92, 1.0 - math.exp(-elapsed / estimate))
 
 
 def render_markdown(items: list[SummaryItem]) -> str:
@@ -49,18 +80,45 @@ def render_markdown(items: list[SummaryItem]) -> str:
     return "\n".join(lines)
 
 
-def write_outputs(out_dir: Path, segments: list[Segment], items: list[SummaryItem]) -> None:
+def _start_diarize(wav: Path, device_index: int | None, box: dict) -> threading.Thread:
+    def job() -> None:
+        try:
+            from sten.diarize import diarize_wav
+
+            if device_index is None:
+                print("3/4 Разметка спикеров...", flush=True)
+            else:
+                print(f"3/4 Разметка спикеров на cuda:{device_index}...", flush=True)
+            box["turns"] = diarize_wav(wav, device_index=device_index)
+        except Exception as exc:
+            box["error"] = exc
+
+    thread = threading.Thread(target=job, daemon=True)
+    thread.start()
+    return thread
+
+
+def write_outputs(
+    out_dir: Path,
+    segments: list[Segment],
+    items: list[SummaryItem],
+    report: MeetingReport | None = None,
+) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "transcript.txt").write_text(transcript_text(segments), encoding="utf-8")
     (out_dir / "transcript.json").write_text(
         json.dumps([asdict(s) for s in segments], ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    summary: dict = {"items": [asdict(i) for i in items]}
+    if report is not None:
+        summary["report"] = report.to_dict()
     (out_dir / "summary.json").write_text(
-        json.dumps({"items": [asdict(i) for i in items]}, ensure_ascii=False, indent=2),
+        json.dumps(summary, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    (out_dir / "summary.md").write_text(render_markdown(items), encoding="utf-8")
+    markdown = render_report_text(report) if report is not None else render_markdown(items)
+    (out_dir / "summary.md").write_text(markdown, encoding="utf-8")
 
 
 def run(
@@ -86,32 +144,83 @@ def run(
     wav = to_wav16k(audio_path, out_dir / "audio.wav")
     report(1, "Конвертация аудио…", 1.0)
 
+    whisper_gpus, diarize_index = pipeline_devices(gpu_memory_free_mib())
+    diarize_box: dict = {"turns": None, "error": None}
+    diarize_thread: threading.Thread | None = None
+    diarize_started = time.time()
+    if diarize_index is not None:
+        diarize_thread = _start_diarize(wav, diarize_index, diarize_box)
+
     print(f"2/4 Транскрипция (whisper {WHISPER_MODEL})...")
     report(2, "Транскрипция…", 0.0)
-    segments = transcribe(
-        wav, on_progress=lambda frac: report(2, "Транскрипция…", frac)
-    )
+    t_asr = time.time()
+    transcribe_kwargs = {}
+    if whisper_gpus is not None:
+        transcribe_kwargs["gpus"] = whisper_gpus
+    try:
+        segments = transcribe(
+            wav,
+            on_progress=lambda frac: report(2, "Транскрипция…", frac),
+            **transcribe_kwargs,
+        )
+    except Exception:
+        if diarize_thread is not None:
+            diarize_thread.join()
+        raise
+    asr_seconds = time.time() - t_asr
     print(f"    сегментов: {len(segments)}, прошло {time.time() - t0:.0f} c")
     report(2, "Транскрипция…", 1.0)
 
     if segments:
-        print("3/4 Разметка спикеров...")
-        report(3, "Разметка спикеров…", 0.0)
+        report(3, DIARIZE_LABEL, 0.0)
+        if diarize_thread is None:
+            diarize_started = time.time()
+            diarize_thread = _start_diarize(wav, None, diarize_box)
+        # Pyannote does not report its own progress. Creep the bar for about as
+        # long as transcription took, and hold short of the end until it returns.
+        estimate = max(20.0, asr_seconds)
+        stop_creep = threading.Event()
+
+        def creep() -> None:
+            while not stop_creep.wait(1.0):
+                report(
+                    3,
+                    DIARIZE_LABEL,
+                    diarize_creep(time.time() - diarize_started, estimate),
+                )
+
+        creeper = threading.Thread(target=creep, daemon=True)
+        creeper.start()
         err_path = out_dir / "diarize_error.txt"
         try:
-            from sten.diarize import diarize_segments
+            diarize_thread.join()
+            if diarize_box["error"] is not None:
+                raise diarize_box["error"]
+            from sten.diarize import apply_diarization
 
-            segments = diarize_segments(segments, wav)
+            segments = apply_diarization(segments, diarize_box["turns"] or [])
         except Exception as exc:
             print(f"    разметка спикеров не удалась: {exc}")
             err_path.write_text(str(exc)[:500], encoding="utf-8")
         else:
             if err_path.exists():
                 err_path.unlink()
-        report(3, "Разметка спикеров…", 1.0)
+        finally:
+            stop_creep.set()
+            creeper.join(timeout=2)
+        report(3, DIARIZE_LABEL, 1.0)
+    elif diarize_thread is not None:
+        diarize_thread.join()
 
-    # Protocol/summary is disabled for now: keep the speaker transcript only.
-    write_outputs(out_dir, segments, [])
+    print("4/4 Обзор совещания...")
+    report(4, "Обзор совещания…", 0.0)
+    meeting_report = build_report(
+        segments,
+        on_progress=lambda frac: report(4, "Обзор совещания…", frac),
+    )
+    write_outputs(out_dir, segments, report_to_items(meeting_report), meeting_report)
+    seed_speakers(out_dir, segments)
+    report(4, "Обзор совещания…", 1.0)
     print(f"Готово за {time.time() - t0:.0f} c. Результаты: {out_dir}")
     print(f"  {out_dir / 'summary.md'}")
 

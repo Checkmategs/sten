@@ -241,14 +241,6 @@ code {
   background: rgba(255, 255, 255, 0.12);
 }
 
-.nav-menu-label {
-  margin: 0.35rem 0.8rem 0.15rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
-}
-
 .hist-list {
   list-style: none;
   margin: 0;
@@ -559,7 +551,7 @@ code {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   width: min(26rem, 100%);
-  gap: 0.75rem;
+  gap: 0rem;
 }
 
 .record-hero .record-actions:has(> .record-btn-upload) > .record-btn {
@@ -641,6 +633,10 @@ code {
   letter-spacing: 0.04em;
   margin-bottom: 0.85rem;
   font-weight: 500;
+}
+
+.record-upload .record-progress {
+  margin: 0 0 1.75rem;
 }
 
 .record-phase {
@@ -801,6 +797,7 @@ code {
 }
 
 .process-loader {
+  position: relative;
   width: 6.75rem;
   height: 6.75rem;
 }
@@ -836,13 +833,52 @@ code {
   opacity: 0.45;
 }
 
+.process-percent {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
 .process-caption {
   margin: 0;
   max-width: 18rem;
+  min-height: 2.9em;
   font-size: 0.8rem;
   line-height: 1.45;
   font-weight: 400;
   color: rgba(255, 255, 255, 0.62);
+}
+
+.process-caption.is-out {
+  animation: process-caption-out 0.4s ease forwards;
+}
+
+.process-caption.is-in {
+  animation: process-caption-in 0.4s ease both;
+}
+
+@keyframes process-caption-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes process-caption-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .process-retry {
@@ -881,6 +917,11 @@ code {
   .process-loader-arc {
     animation: none;
     stroke-dasharray: 150 114;
+  }
+
+  .process-caption.is-out,
+  .process-caption.is-in {
+    animation: none;
   }
 }
 
@@ -1055,10 +1096,187 @@ code {
 }
 
 .transcript-speaker {
-  margin: 0 0 0.45rem;
+  margin: 0;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--sten-muted);
+}
+
+.transcript-turn-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+
+.transcript-seek {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sten-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.transcript-seek:hover {
+  color: #fff;
+}
+
+.transcript-player {
+  display: block;
+  width: 100%;
+  margin-top: 1.75rem;
+}
+
+.consensus-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.meeting-tabs {
+  display: flex;
+  gap: 1.25rem;
+  margin: 0 0 1.75rem;
+  border-bottom: 1px solid var(--sten-border);
+}
+
+.meeting-tab {
+  margin: 0;
+  padding: 0 0 0.65rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--sten-muted);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.meeting-tab[aria-selected='true'] {
+  color: #fff;
+  border-bottom-color: #fff;
+}
+
+.meeting-report p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.report-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.report-list strong {
+  font-weight: 600;
+}
+
+.speakers-panel {
+  margin-bottom: 1.75rem;
+}
+
+.speakers-panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sten-muted);
+}
+
+.speaker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.speaker-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2rem;
+}
+
+.speaker-name {
+  font-weight: 600;
+}
+
+.speaker-count {
+  margin-left: 0.45rem;
+  color: var(--sten-muted);
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.speaker-input {
+  min-width: 0;
+  flex: 1;
+  padding: 0.15rem 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #fff;
+}
+
+.speaker-action {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sten-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.speaker-action:hover:not(:disabled) {
+  color: #fff;
+}
+
+.speaker-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.export-menu {
+  position: relative;
+}
+
+.export-menu-list {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 5;
+  min-width: 11rem;
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  background: #1c1c1c;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.export-menu-list button {
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.export-menu-list button:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .consensus-btn-secondary {
@@ -1273,70 +1491,131 @@ code {
   background: #fff;
 }
 
+.app-shell:has(.login-card) {
+  align-items: center;
+  justify-content: center;
+}
+
 .login-card {
   position: relative;
   z-index: 1;
-  width: min(420px, calc(100% - 32px));
-  margin: 12vh auto 0;
-  padding: 28px 24px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 16px;
-  background: rgba(12, 12, 12, 0.72);
-  backdrop-filter: blur(16px);
+  width: min(60rem, calc(100% - 32px));
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  container-type: inline-size;
+}
+
+.login-stage.is-out {
+  animation: login-fade-out 0.4s ease forwards;
+  pointer-events: none;
+}
+
+.login-stage.is-in {
+  animation: login-fade-in 0.4s ease both;
+}
+
+@keyframes login-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes login-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-stage.is-out,
+  .login-stage.is-in {
+    animation: none;
+  }
 }
 
 .login-card h1 {
-  margin: 0 0 8px;
-  font-size: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.15em;
+  margin: 0 0 3.25rem;
+  font-size: clamp(1.65rem, 10.8cqi, 4.5rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
 .login-lead {
   position: relative;
   z-index: 1;
-  margin: 0 0 18px;
+  margin: 0;
   color: rgba(255, 255, 255, 0.72);
-}
-
-.login-switch {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.login-switch button {
-  flex: 1;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 999px;
-  background: transparent;
-  color: #fff;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.login-switch button.is-on {
-  background: #fff;
-  color: #111;
 }
 
 .login-card form {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 12px;
+  width: min(420px, 100%);
+  margin-inline: auto;
 }
 
-.login-card label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 0.9rem;
+.login-card form > input {
+  width: 80%;
+}
+
+.login-card form > button {
+  width: 50%;
+}
+
+.login-card form > .record-btn {
+  margin-top: 1.75rem;
 }
 
 .login-card input {
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
+  border-radius: var(--sten-radius-pill);
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
-  padding: 10px 12px;
+  padding: 10px 16px;
+}
+
+.login-card input::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.login-register {
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 0.75rem 1.2rem;
+  border: 0;
+  border-radius: var(--sten-radius-pill);
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.login-register:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.login-register:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.login-register.is-reserved {
+  visibility: hidden;
 }
 
 .login-error {
@@ -1349,8 +1628,8 @@ code {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 16px;
-  padding-top: 12px;
+  margin: 0.7rem;
+  padding-top: 0.7rem;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.8);
 }

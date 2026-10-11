@@ -10,6 +10,12 @@ const STATUS_LABELS: Record<MeetingStatus, string> = {
   error: 'Ошибка',
 }
 
+const PROCESSING_LINES = [
+  'разбираю слова по слогам',
+  'анализирую голос спикеров',
+  'считаю паузы между предложениями',
+]
+
 /** Polls meeting processing status and routes to consensus when ready. */
 export function ProcessPage() {
   const { id } = useParams<{ id: string }>()
@@ -22,6 +28,8 @@ export function ProcessPage() {
   const [progress, setProgress] = useState<ProcessProgress | null>(null)
   const [busy, setBusy] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [line, setLine] = useState(0)
+  const [linePhase, setLinePhase] = useState<'in' | 'out'>('in')
 
   useEffect(() => {
     headingRef.current?.focus()
@@ -52,6 +60,23 @@ export function ProcessPage() {
     return () => window.clearInterval(timer)
   }, [poll])
 
+  const showFlavor = status === 'processing' && !loadError && progress?.step !== 3
+  const diarizing = status === 'processing' && !loadError && progress?.step === 3
+  const percent = progress?.percent ?? 0
+
+  useEffect(() => {
+    if (!showFlavor) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const timer = window.setInterval(() => {
+      if (reduce) {
+        setLine((current) => (current + 1) % PROCESSING_LINES.length)
+        return
+      }
+      setLinePhase('out')
+    }, 3400)
+    return () => window.clearInterval(timer)
+  }, [showFlavor])
+
   const handleRetry = async () => {
     setBusy(true)
     setLoadError(null)
@@ -67,18 +92,19 @@ export function ProcessPage() {
   }
 
   const failed = status === 'error' || Boolean(loadError)
-  const caption =
-    status === 'error'
+  const caption = diarizing
+    ? progress?.label || 'Идёт разметка спикеров…'
+    : showFlavor
+    ? PROCESSING_LINES[line]
+    : status === 'error'
       ? error || 'Не удалось обработать запись'
       : loadError
         ? loadError
         : status === 'recording'
           ? 'Сервер занят другой встречей'
-          : progress?.label
-            ? progress.label
-            : status != null
-              ? STATUS_LABELS[status]
-              : 'Загрузка…'
+          : status != null
+            ? STATUS_LABELS[status]
+            : 'Загрузка…'
 
   return (
     <main className="process-page">
@@ -91,15 +117,37 @@ export function ProcessPage() {
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={progress?.percent ?? 0}
+          aria-valuenow={percent}
           aria-labelledby="process-status"
         >
           <svg viewBox="0 0 100 100" aria-hidden="true">
             <circle className="process-loader-track" cx="50" cy="50" r="42" />
             <circle className="process-loader-arc" cx="50" cy="50" r="42" />
           </svg>
+          {showFlavor || diarizing ? (
+            <span className="process-percent" aria-hidden="true">
+              {percent}%
+            </span>
+          ) : null}
         </div>
-        <p id="process-status" className="process-caption" aria-live="polite">
+        <p
+          id="process-status"
+          className={
+            showFlavor
+              ? linePhase === 'out'
+                ? 'process-caption is-out'
+                : 'process-caption is-in'
+              : 'process-caption'
+          }
+          aria-live="polite"
+          onAnimationEnd={(event) => {
+            if (event.target !== event.currentTarget || event.animationName !== 'process-caption-out') {
+              return
+            }
+            setLine((current) => (current + 1) % PROCESSING_LINES.length)
+            setLinePhase('in')
+          }}
+        >
           {caption}
         </p>
         {status === 'error' || status === 'recording' ? (

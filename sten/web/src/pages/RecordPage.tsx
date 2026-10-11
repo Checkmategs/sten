@@ -9,9 +9,9 @@ import {
   useRecorder,
 } from '../useRecorder'
 
-const MAX_UPLOAD_BYTES = 512 * 1024 * 1024
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024
 const ACCEPT =
-  'audio/*,video/mp4,.m4a,.caf,.mp3,.wav,.ogg,.webm,.aac,.flac,.mp4,.mpeg,.m4b'
+  'audio/*,video/*,.m4a,.caf,.mp3,.wav,.ogg,.oga,.webm,.mkv,.mov,.avi,.m4v,.mpg,.mpeg,.mp4,.3gp,.wmv,.flv,.aac,.flac,.m4b'
 const ALLOWED_EXTS = new Set([
   'webm',
   'm4a',
@@ -26,6 +26,14 @@ const ALLOWED_EXTS = new Set([
   'mpeg',
   'mpga',
   'm4b',
+  'mkv',
+  'mov',
+  'avi',
+  'm4v',
+  'mpg',
+  '3gp',
+  'wmv',
+  'flv',
 ])
 
 const HERO_PHRASES = [
@@ -87,7 +95,7 @@ function fileLooksUnsupported(file: File): boolean {
   const dot = name.lastIndexOf('.')
   const ext = dot >= 0 ? name.slice(dot + 1) : ''
   if (ext && ALLOWED_EXTS.has(ext)) return false
-  if (file.type.startsWith('audio/') || file.type === 'video/mp4') return false
+  if (file.type.startsWith('audio/') || file.type.startsWith('video/')) return false
   return Boolean(ext)
 }
 
@@ -120,16 +128,16 @@ export function RecordPage() {
     if (!file) return
 
     if (file.size === 0) {
-      setUploadError('Файл пустой. Выберите аудиозапись.')
+      setUploadError('Файл пустой. Выберите запись встречи.')
       return
     }
     if (file.size > MAX_UPLOAD_BYTES) {
-      setUploadError('Файл больше 512 МБ.')
+      setUploadError('Файл больше 2 ГБ.')
       return
     }
     if (fileLooksUnsupported(file)) {
       setUploadError(
-        'Неподдерживаемый формат. Загрузите аудио (m4a, caf, mp3, wav, webm и т.д.).',
+        'Неподдерживаемый формат. Загрузите аудио или видео: webm из Телемоста, mp4, mkv, mov и другие.',
       )
       return
     }
@@ -201,13 +209,7 @@ export function RecordPage() {
         )}
 
         {uploading ? (
-          <div className="record-status">
-            <p className="record-phase">
-              <span id="upload-status" role="status">
-                Загрузка файла…
-              </span>{' '}
-              <span aria-hidden="true">{uploadPercent}%</span>
-            </p>
+          <div className="record-status record-upload">
             <div
               className="record-progress"
               role="progressbar"
@@ -222,6 +224,12 @@ export function RecordPage() {
                 aria-hidden="true"
               />
             </div>
+            <p className="record-phase">
+              <span id="upload-status" role="status">
+                Загрузка файла…
+              </span>{' '}
+              <span aria-hidden="true">{uploadPercent}%</span>
+            </p>
           </div>
         ) : !atStart ? (
           <div className="record-status">
@@ -291,7 +299,7 @@ export function RecordPage() {
         </div>
 
         <p id="upload-hint" className="visually-hidden">
-          Аудиофайл: m4a, caf, mp3, wav, webm и другие форматы
+          Аудио или видео: webm из Телемоста, mp4, mkv, mov, m4a, mp3 и другие форматы
         </p>
 
         {insecure ? (

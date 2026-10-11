@@ -73,17 +73,29 @@ def test_is_cuda_oom():
 def test_whisper_device_plan_uses_freest_gpu_then_lighter_and_cpu():
     plan = whisper_device_plan("float16", gpus=[(0, 4000), (1, 9000), (2, 9000)])
     assert plan == [
-        ("cuda", 1, "float16"),
-        ("cuda", 1, "int8_float16"),
-        ("cuda", 1, "int8"),
-        ("cpu", None, "int8"),
+        ("cuda", 1, "float16", 2),
+        ("cuda", 1, "int8_float16", 8),
+        ("cuda", 1, "int8", 8),
+        ("cpu", None, "int8", 8),
     ]
+
+
+def test_whisper_device_plan_shrinks_batch_when_gpu_is_tight():
+    plan = whisper_device_plan("float16", gpus=[(0, 5000), (1, 3000)])
+    assert plan[0] == ("cuda", 0, "int8", 2)
+    assert all(item[2] != "float16" for item in plan if item[0] == "cuda")
+    assert plan[-1] == ("cpu", None, "int8", 8)
+
+
+def test_whisper_device_plan_keeps_float16_batch_when_gpu_is_free():
+    plan = whisper_device_plan("float16", gpus=[(0, 16000)])
+    assert plan[0] == ("cuda", 0, "float16", 8)
 
 
 def test_whisper_device_plan_without_gpu_keeps_auto_then_cpu():
     assert whisper_device_plan("float16", gpus=[]) == [
-        ("auto", None, "float16"),
-        ("cpu", None, "int8"),
+        ("auto", None, "float16", 8),
+        ("cpu", None, "int8", 8),
     ]
 
 
@@ -117,12 +129,13 @@ def test_transcribe_retries_lighter_compute_after_cuda_oom(tmp_path, monkeypatch
     monkeypatch.setattr(
         transcribe_mod,
         "whisper_device_plan",
-        lambda _compute: [
+        lambda _compute, gpus=None: [
             ("cuda", 1, "float16"),
             ("cuda", 1, "int8_float16"),
         ],
     )
     monkeypatch.setattr(transcribe_mod, "_load_whisper", load)
+    monkeypatch.setattr(transcribe_mod, "_make_transcriber", lambda model: model)
 
     segments = transcribe_mod.transcribe(wav)
     assert loads == ["float16", "int8_float16"]
@@ -139,9 +152,10 @@ def test_transcribe_reraises_non_oom(tmp_path, monkeypatch):
         raise RuntimeError("model files missing")
 
     monkeypatch.setattr(
-        transcribe_mod, "whisper_device_plan", lambda _compute: [("cuda", 0, "float16")]
+        transcribe_mod, "whisper_device_plan", lambda _compute, gpus=None: [("cuda", 0, "float16")]
     )
     monkeypatch.setattr(transcribe_mod, "_load_whisper", load)
+    monkeypatch.setattr(transcribe_mod, "_make_transcriber", lambda model: model)
 
     with pytest.raises(RuntimeError, match="model files missing"):
         transcribe_mod.transcribe(wav)

@@ -99,7 +99,30 @@ def apply_diarization(
     return assign_speakers(segments, diarization)
 
 
-def diarize_wav(wav: Path) -> list[tuple[float, float, str]]:
+def _diarize_device(device_index: int | None):
+    import torch
+
+    if device_index is not None:
+        try:
+            torch.zeros(1, device=f"cuda:{device_index}")
+            return torch.device("cuda", device_index)
+        except Exception:
+            return torch.device("cpu")
+    # This venv's torch is built for CUDA 13. The server driver only supports
+    # 12.8, so a "cuda" device can still fail during init. Fall back to CPU.
+    device = torch.device("cpu")
+    if torch.cuda.is_available():
+        try:
+            torch.zeros(1, device="cuda")
+            device = torch.device("cuda")
+        except Exception:
+            device = torch.device("cpu")
+    return device
+
+
+def diarize_wav(
+    wav: Path, device_index: int | None = None
+) -> list[tuple[float, float, str]]:
     """Run pyannote speaker diarization. Returns (start, end, raw_label) list.
 
     Requires ``HF_TOKEN`` and accepted licenses for the pyannote models.
@@ -112,22 +135,14 @@ def diarize_wav(wav: Path) -> list[tuple[float, float, str]]:
             "(и примите лицензии speaker-diarization-3.1 / segmentation-3.0)."
         )
 
-    import torch
     from pyannote.audio import Pipeline
 
     pipeline = Pipeline.from_pretrained(
         DIARIZATION_MODEL,
         token=HF_TOKEN,
     )
-    # This venv's torch is built for CUDA 13. The server driver only supports
-    # 12.8, so a "cuda" device can still fail during init. Fall back to CPU.
-    device = torch.device("cpu")
-    if torch.cuda.is_available():
-        try:
-            torch.zeros(1, device="cuda")
-            device = torch.device("cuda")
-        except Exception:
-            device = torch.device("cpu")
+    device = _diarize_device(device_index)
+    print(f"    pyannote на {device}", flush=True)
     pipeline.to(device)
 
     annotation = pipeline(str(wav))

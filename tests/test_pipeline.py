@@ -1,21 +1,83 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from sten.items import SummaryItem
-from sten.pipeline import overall_percent, render_markdown, run, write_outputs
+from sten.report import MeetingReport
+from sten.pipeline import (
+    diarize_creep,
+    overall_percent,
+    pipeline_devices,
+    render_markdown,
+    run,
+    write_outputs,
+)
 from sten.transcribe import Segment
+
+
+@pytest.fixture(autouse=True)
+def _stub_meeting_report(monkeypatch):
+    def fake(segments, on_progress=None):
+        if on_progress is not None:
+            on_progress(1.0)
+        return MeetingReport()
+
+    monkeypatch.setattr("sten.pipeline.build_report", fake)
 
 
 def test_overall_percent_maps_stages():
     assert overall_percent(1, 0.0) == 0
     assert overall_percent(1, 1.0) == 8
     assert overall_percent(2, 0.0) == 8
-    assert overall_percent(2, 0.5) == 34
-    assert overall_percent(2, 1.0) == 60
-    assert overall_percent(3, 0.0) == 60
-    assert overall_percent(3, 1.0) == 82
-    assert overall_percent(4, 0.0) == 82
+    assert overall_percent(2, 0.5) == 27
+    assert overall_percent(2, 1.0) == 46
+    assert overall_percent(3, 0.0) == 46
+    assert overall_percent(3, 1.0) == 96
+    assert overall_percent(4, 0.0) == 96
     assert overall_percent(4, 1.0) == 99
+
+
+def test_pipeline_devices_splits_two_gpus_and_keeps_one_sequential():
+    assert pipeline_devices([(1, 9000), (0, 4000)]) == ([(1, 9000)], 0)
+    assert pipeline_devices([(0, 8000)]) == (None, None)
+    assert pipeline_devices([]) == (None, None)
+
+
+def test_run_keeps_diarize_bar_moving(tmp_path: Path, monkeypatch):
+    import time
+
+    audio = tmp_path / "in.webm"
+    audio.write_bytes(b"x")
+    plain = [Segment(0.0, 1.0, "Привет")]
+    monkeypatch.setattr("sten.pipeline.to_wav16k", lambda src, dest: tmp_path / "audio.wav")
+    monkeypatch.setattr(
+        "sten.pipeline.transcribe", lambda wav_path, on_progress=None, **_kwargs: plain
+    )
+
+    def slow_diarize(wav_path, device_index=None):
+        time.sleep(1.3)
+        return []
+
+    monkeypatch.setattr("sten.diarize.diarize_wav", slow_diarize)
+    seen: list[tuple[int, str, int]] = []
+
+    def on_stage(step: int, total: int, label: str, pct: int) -> None:
+        seen.append((step, label, pct))
+
+    run(audio, tmp_path / "out", on_stage=on_stage)
+
+    diar = [row for row in seen if row[0] == 3]
+    assert diar[0] == (3, "Идёт разметка спикеров…", 46)
+    assert any(46 < pct < 96 for _, _, pct in diar)
+    assert diar[-1] == (3, "Идёт разметка спикеров…", 96)
+
+
+def test_diarize_creep_advances_then_holds_short_of_done():
+    assert diarize_creep(0, 100) == 0
+    assert 0.6 < diarize_creep(100, 100) < 0.7
+    assert diarize_creep(10_000, 100) == 0.92
+    assert diarize_creep(50, 100) < diarize_creep(100, 100)
 
 
 def test_render_markdown_groups_by_theme():
@@ -59,27 +121,39 @@ def test_run_labels_speakers_before_summary(tmp_path: Path, monkeypatch):
     audio.write_bytes(b"x")
     wav = tmp_path / "audio.wav"
     plain = [Segment(0.0, 1.0, "Привет")]
-    labeled = [Segment(0.0, 1.0, "Привет", speaker="Спикер 1")]
     seen: dict = {}
 
     monkeypatch.setattr("sten.pipeline.to_wav16k", lambda src, dest: wav)
     monkeypatch.setattr(
-        "sten.pipeline.transcribe", lambda wav_path, on_progress=None: plain
+        "sten.pipeline.gpu_memory_free_mib",
+        lambda: [(1, 9000), (2, 8000)],
     )
 
-    def fake_diarize(segs, wav_path):
-        seen["wav"] = wav_path
-        return labeled
+    def fake_transcribe(wav_path, on_progress=None, gpus=None):
+        seen["gpus"] = gpus
+        return plain
 
-    monkeypatch.setattr("sten.diarize.diarize_segments", fake_diarize)
+    monkeypatch.setattr("sten.pipeline.transcribe", fake_transcribe)
+
+    def fake_diarize(wav_path, device_index=None):
+        seen["wav"] = wav_path
+        seen["device"] = device_index
+        return [(0.0, 1.0, "SPEAKER_00")]
+
+    monkeypatch.setattr("sten.diarize.diarize_wav", fake_diarize)
 
     out = tmp_path / "out"
     run(audio, out)
 
     assert seen["wav"] == wav
+    assert seen["gpus"] == [(1, 9000)]
+    assert seen["device"] == 2
     assert "Спикер 1: Привет" in (out / "transcript.txt").read_text(encoding="utf-8")
     summary = json.loads((out / "summary.json").read_text(encoding="utf-8"))
     assert summary["items"] == []
+    assert summary["report"]["title"] == ""
+    speakers = json.loads((out / "speakers.json").read_text(encoding="utf-8"))
+    assert speakers["speakers"] == ["Спикер 1"]
     assert not (out / "diarize_error.txt").exists()
 
 
@@ -90,13 +164,13 @@ def test_run_keeps_transcript_when_diarization_fails(tmp_path: Path, monkeypatch
 
     monkeypatch.setattr("sten.pipeline.to_wav16k", lambda src, dest: tmp_path / "audio.wav")
     monkeypatch.setattr(
-        "sten.pipeline.transcribe", lambda wav_path, on_progress=None: plain
+        "sten.pipeline.transcribe", lambda wav_path, on_progress=None, **_kwargs: plain
     )
 
-    def fail_diarize(segs, wav_path):
+    def fail_diarize(wav_path, device_index=None):
         raise RuntimeError("нет модели")
 
-    monkeypatch.setattr("sten.diarize.diarize_segments", fail_diarize)
+    monkeypatch.setattr("sten.diarize.diarize_wav", fail_diarize)
 
     out = tmp_path / "out"
     run(audio, out)

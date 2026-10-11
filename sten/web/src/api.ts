@@ -103,6 +103,47 @@ export interface TranscriptResponse {
   error: string | null
 }
 
+export interface ReportParticipant {
+  speaker: string
+  role: string
+  name: string
+}
+
+export interface ReportTopic {
+  title: string
+  text: string
+}
+
+export interface ReportDecision {
+  text: string
+  initiator: string
+}
+
+export interface ReportTask {
+  text: string
+  assignee: string
+  due: string
+}
+
+export interface MeetingReport {
+  available: boolean
+  title: string
+  summary: string
+  outcome: string
+  participants: ReportParticipant[]
+  topics: ReportTopic[]
+  decisions: ReportDecision[]
+  tasks: ReportTask[]
+  text: string
+}
+
+export interface SpeakerRow {
+  name: string
+  count: number
+}
+
+export type ExportFormat = 'txt' | 'srt' | 'docx'
+
 export interface PatchItemBody {
   text?: string
   status?: ItemStatus
@@ -115,6 +156,19 @@ export interface RewriteBody {
 export interface AuthUser {
   id: number
   name: string
+}
+
+export function apiDetail(raw: string): string {
+  const start = raw.indexOf('{')
+  if (start >= 0) {
+    try {
+      const parsed = JSON.parse(raw.slice(start)) as { detail?: unknown }
+      if (typeof parsed.detail === 'string') return parsed.detail
+    } catch {
+      /* keep the raw body */
+    }
+  }
+  return raw.trim()
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -190,6 +244,62 @@ export const api = {
 
   getTranscript(id: number): Promise<TranscriptResponse> {
     return request(`/api/meetings/${id}/transcript`)
+  },
+
+  getReport(id: number): Promise<MeetingReport> {
+    return request(`/api/meetings/${id}/report`)
+  },
+
+  meetingAudioUrl(id: number): string {
+    return `${baseURL}/api/meetings/${id}/audio`
+  },
+
+  getSpeakers(id: number): Promise<{ speakers: SpeakerRow[] }> {
+    return request(`/api/meetings/${id}/speakers`)
+  },
+
+  renameSpeaker(
+    id: number,
+    source: string,
+    target: string,
+  ): Promise<{ speakers: SpeakerRow[]; report: MeetingReport }> {
+    return request(`/api/meetings/${id}/speakers/rename`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source, target }),
+    })
+  },
+
+  deleteSpeaker(id: number, name: string): Promise<{ speakers: SpeakerRow[] }> {
+    return request(`/api/meetings/${id}/speakers/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+  },
+
+  async downloadExport(id: number, format: ExportFormat): Promise<void> {
+    const res = await fetch(
+      `${baseURL}/api/meetings/${id}/export?format=${format}`,
+      { credentials: 'include' },
+    )
+    if (res.status === 401) {
+      window.dispatchEvent(new Event('sten-unauthorized'))
+    }
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '')
+      throw new Error(apiDetail(detail) || `API ${res.status}`)
+    }
+    const blob = await res.blob()
+    const header = res.headers.get('Content-Disposition') || ''
+    const match = /filename\*=UTF-8''([^;]+)/.exec(header)
+    const filename = match ? decodeURIComponent(match[1]) : `meeting.${format}`
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
   },
 
   diarize(id: number): Promise<{ id: number; status: string }> {

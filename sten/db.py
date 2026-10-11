@@ -13,8 +13,9 @@ from sten.config import DATA_DIR, DB_PATH
 ALLOWED_AUDIO_EXTS = frozenset({
     "webm", "m4a", "caf", "mp3", "wav", "ogg", "oga",
     "aac", "flac", "mp4", "mpeg", "mpga", "m4b",
+    "mkv", "mov", "avi", "m4v", "mpg", "3gp", "wmv", "flv",
 })
-MAX_AUDIO_BYTES = 512 * 1024 * 1024
+MAX_AUDIO_BYTES = 2 * 1024 * 1024 * 1024
 _SOURCE_AUDIO_ORDER = (
     "audio.webm",
     "audio.m4a",
@@ -28,6 +29,14 @@ _SOURCE_AUDIO_ORDER = (
     "audio.mpeg",
     "audio.mpga",
     "audio.m4b",
+    "audio.mkv",
+    "audio.mov",
+    "audio.avi",
+    "audio.m4v",
+    "audio.mpg",
+    "audio.3gp",
+    "audio.wmv",
+    "audio.flv",
     "audio.wav",
 )
 

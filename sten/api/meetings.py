@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Literal
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
 from sten import db
@@ -46,6 +48,48 @@ class PatchItemBody(BaseModel):
 
 class RewriteBody(BaseModel):
     objection: str = Field(min_length=1)
+
+
+class RenameSpeakerBody(BaseModel):
+    source: str = Field(min_length=1, max_length=80)
+    target: str = Field(min_length=1, max_length=80)
+
+
+class DeleteSpeakerBody(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+
+_AUDIO_TYPES = {
+    ".webm": "audio/webm",
+    ".m4a": "audio/mp4",
+    ".caf": "audio/x-caf",
+    ".mp3": "audio/mpeg",
+    ".ogg": "audio/ogg",
+    ".oga": "audio/ogg",
+    ".aac": "audio/aac",
+    ".flac": "audio/flac",
+    ".mp4": "video/mp4",
+    ".mpeg": "audio/mpeg",
+    ".mpga": "audio/mpeg",
+    ".m4b": "audio/mp4",
+    ".mkv": "video/x-matroska",
+    ".mov": "video/quicktime",
+    ".avi": "video/x-msvideo",
+    ".wav": "audio/wav",
+}
+
+def _empty_report() -> dict:
+    return {
+        "available": False,
+        "title": "",
+        "summary": "",
+        "outcome": "",
+        "participants": [],
+        "topics": [],
+        "decisions": [],
+        "tasks": [],
+        "text": "",
+    }
 
 
 def _require_meeting(meeting_id: int, user: dict) -> dict:
@@ -229,6 +273,160 @@ def get_transcript(meeting_id: int, user: dict = Depends(require_user)) -> dict:
     }
 
 
+def _meeting_dir(meeting_id: int) -> Path:
+    return Path(db.DATA_DIR) / "meetings" / str(meeting_id)
+
+
+def _load_report_payload(meeting_id: int) -> dict:
+    from sten.report import render_report_text, report_from_dict
+
+    path = _meeting_dir(meeting_id) / "summary.json"
+    if not path.exists():
+        return _empty_report()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    raw = data.get("report")
+    if not isinstance(raw, dict):
+        return _empty_report()
+    report = report_from_dict(raw)
+    payload = report.to_dict()
+    payload["available"] = True
+    payload["text"] = render_report_text(report)
+    return payload
+
+
+def _source_audio(meeting_id: int) -> Path:
+    try:
+        return db.find_source_audio(meeting_id)
+    except FileNotFoundError:
+        wav = _meeting_dir(meeting_id) / "audio.wav"
+        if wav.is_file() and wav.stat().st_size > 0:
+            return wav
+        raise
+
+
+def _download_name(title: str, ext: str) -> str:
+    cleaned = "".join(ch if ch not in '\\/:*?"<>|\n\r\t' else " " for ch in title)
+    cleaned = " ".join(cleaned.split()).strip() or "meeting"
+    return f"{cleaned[:80]}.{ext}"
+
+
+def _attachment(content: bytes, media_type: str, filename: str) -> Response:
+    encoded = quote(filename)
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded}"},
+    )
+
+
+@router.get("/meetings/{meeting_id}/report")
+def get_report(meeting_id: int, user: dict = Depends(require_user)) -> dict:
+    _require_meeting(meeting_id, user)
+    return _load_report_payload(meeting_id)
+
+
+@router.get("/meetings/{meeting_id}/audio")
+def get_audio(meeting_id: int, user: dict = Depends(require_user)) -> FileResponse:
+    _require_meeting(meeting_id, user)
+    try:
+        path = _source_audio(meeting_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="no audio") from exc
+    media = _AUDIO_TYPES.get(path.suffix.lower(), "application/octet-stream")
+    return FileResponse(path, media_type=media, filename=path.name)
+
+
+@router.get("/meetings/{meeting_id}/speakers")
+def get_speakers(meeting_id: int, user: dict = Depends(require_user)) -> dict:
+    from sten.speakers import list_speakers
+
+    _require_meeting(meeting_id, user)
+    return {"speakers": list_speakers(_meeting_dir(meeting_id))}
+
+
+@router.post("/meetings/{meeting_id}/speakers/rename")
+def rename_meeting_speaker(
+    meeting_id: int,
+    body: RenameSpeakerBody,
+    user: dict = Depends(require_user),
+) -> dict:
+    from sten.speakers import SpeakerNotFound, rename_speaker
+
+    _require_meeting(meeting_id, user)
+    if is_busy(meeting_id):
+        raise HTTPException(status_code=409, detail="meeting is processing")
+    try:
+        speakers = rename_speaker(_meeting_dir(meeting_id), body.source, body.target)
+    except SpeakerNotFound as exc:
+        raise HTTPException(status_code=404, detail="speaker not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"speakers": speakers, "report": _load_report_payload(meeting_id)}
+
+
+@router.post("/meetings/{meeting_id}/speakers/delete")
+def delete_meeting_speaker(
+    meeting_id: int,
+    body: DeleteSpeakerBody,
+    user: dict = Depends(require_user),
+) -> dict:
+    from sten.speakers import SPEAKER_IN_USE, SpeakerInUse, SpeakerNotFound, delete_speaker
+
+    _require_meeting(meeting_id, user)
+    if is_busy(meeting_id):
+        raise HTTPException(status_code=409, detail="meeting is processing")
+    try:
+        speakers = delete_speaker(_meeting_dir(meeting_id), body.name)
+    except SpeakerInUse as exc:
+        raise HTTPException(status_code=409, detail=SPEAKER_IN_USE) from exc
+    except SpeakerNotFound as exc:
+        raise HTTPException(status_code=404, detail="speaker not found") from exc
+    return {"speakers": speakers}
+
+
+@router.get("/meetings/{meeting_id}/export")
+def export_meeting(
+    meeting_id: int,
+    fmt: Literal["txt", "srt", "docx"] = Query(alias="format"),
+    user: dict = Depends(require_user),
+) -> Response:
+    from sten.exporting import render_docx, render_srt
+    from sten.report import report_from_dict
+    from sten.speakers import load_segments
+    from sten.transcribe import transcript_text
+
+    meeting = _require_meeting(meeting_id, user)
+    out_dir = _meeting_dir(meeting_id)
+    title = str(meeting["title"])
+    if fmt == "txt":
+        path = out_dir / "transcript.txt"
+        if path.exists():
+            text = path.read_text(encoding="utf-8")
+        else:
+            text = transcript_text(load_segments(out_dir))
+        if not text.strip():
+            raise HTTPException(status_code=404, detail="no transcript")
+        return _attachment(text.encode("utf-8"), "text/plain; charset=utf-8", _download_name(title, "txt"))
+    if fmt == "srt":
+        segments = load_segments(out_dir)
+        if not segments:
+            raise HTTPException(status_code=404, detail="no transcript")
+        return _attachment(
+            render_srt(segments).encode("utf-8"),
+            "application/x-subrip; charset=utf-8",
+            _download_name(title, "srt"),
+        )
+    payload = _load_report_payload(meeting_id)
+    if not payload["available"]:
+        raise HTTPException(status_code=404, detail="no report")
+    report = report_from_dict(payload)
+    return _attachment(
+        render_docx(report),
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        _download_name(title, "docx"),
+    )
+
+
 @router.post("/meetings/{meeting_id}/diarize")
 def diarize_meeting(meeting_id: int, user: dict = Depends(require_user)) -> dict:
     """Run speaker diarization on existing audio+transcript (no Whisper/summary)."""
@@ -268,7 +466,7 @@ async def upload_audio(
 
     ext = guess_audio_ext(file.filename or "", file.content_type or "", first)
     if ext is None:
-        raise HTTPException(status_code=400, detail="unsupported audio type")
+        raise HTTPException(status_code=400, detail="unsupported media type")
 
     dest = db.save_uploaded_audio(meeting_id, ext)
     written = 0
