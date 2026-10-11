@@ -1,0 +1,14 @@
+start
+diarize 85
+    pyannote на cuda
+/home/nineone/sten/.venv/lib/python3.12/site-packages/pyannote/audio/utils/reproducibility.py:74: ReproducibilityWarning: TensorFloat-32 (TF32) has been disabled as it might lead to reproducibility issues and lower accuracy.
+It can be re-enabled by calling
+   >>> import torch
+   >>> torch.backends.cuda.matmul.allow_tf32 = True
+   >>> torch.backends.cudnn.allow_tf32 = True
+See https://github.com/pyannote/pyannote-audio/issues/1370 for more details.
+
+  warnings.warn(
+/home/nineone/sten/.venv/lib/python3.12/site-packages/pyannote/audio/models/blocks/pooling.py:103: UserWarning: std(): degrees of freedom is <= 0. Correction should be strictly less than the reduction factor (input numel divided by output numel). (Triggered internally at /pytorch/aten/src/ATen/native/ReduceOps.cpp:1858.)
+  std = sequences.std(dim=-1, correction=1)
+ok

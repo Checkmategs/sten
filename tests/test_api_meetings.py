@@ -447,6 +447,27 @@ def _ready_meeting(client, tmp_path):
     return mid
 
 
+def test_automatic_title_becomes_brief_title(client, tmp_path):
+    mid = client.post(
+        "/api/meetings", json={"title": "Встреча 2026-10-12 00:09"}
+    ).json()["id"]
+    out = tmp_path / "data" / "meetings" / str(mid)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "summary.json").write_text(
+        '{"items": [], "report": {"title": "  Тема   обзора  "}}',
+        encoding="utf-8",
+    )
+    db.set_meeting_status(mid, "ready")
+
+    meeting = client.get(f"/api/meetings/{mid}")
+    assert meeting.status_code == 200
+    assert meeting.json()["title"] == "Тема обзора"
+
+    listed = client.get("/api/meetings")
+    assert listed.status_code == 200
+    assert listed.json()[0]["title"] == "Тема обзора"
+
+
 def test_report_audio_and_export(client, tmp_path):
     mid = _ready_meeting(client, tmp_path)
     report = client.get(f"/api/meetings/{mid}/report")

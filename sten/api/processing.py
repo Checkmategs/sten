@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import json
+import re
 import threading
 import traceback
 from pathlib import Path
 
 from sten import db, pipeline
+
+# Same shape as the recorder's defaultMeetingTitle().
+_AUTO_MEETING_TITLE = re.compile(r"^Встреча \d{4}-\d{2}-\d{2} \d{2}:\d{2}$")
+_TITLE_LIMIT = 200
 
 _lock = threading.Lock()
 _busy_meeting_id: int | None = None
@@ -15,6 +20,32 @@ _busy_meeting_id: int | None = None
 
 class Conflict(Exception):
     """Raised when another meeting is already being processed."""
+
+
+def adopt_brief_title(meeting: dict) -> str:
+    """Use the brief's meeting name instead of the automatic «Встреча date» title.
+
+    A title the user typed stays as it is.
+    """
+    current = str(meeting.get("title") or "").strip()
+    if not _AUTO_MEETING_TITLE.fullmatch(current):
+        return current
+    meeting_id = int(meeting["id"])
+    path = Path(db.DATA_DIR) / "meetings" / str(meeting_id) / "summary.json"
+    if not path.is_file():
+        return current
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return current
+    report = data.get("report")
+    if not isinstance(report, dict):
+        return current
+    title = " ".join(str(report.get("title") or "").split())[:_TITLE_LIMIT]
+    if not title or title == current:
+        return current
+    db.set_meeting_title(meeting_id, title)
+    return title
 
 
 def is_busy(meeting_id: int) -> bool:
@@ -180,6 +211,9 @@ def _resummarize_meeting(meeting_id: int) -> None:
         db.replace_items(
             meeting_id, [(i.text, i.category, i.theme) for i in items]
         )
+        stored = db.get_meeting(meeting_id)
+        if stored is not None:
+            adopt_brief_title(stored)
         db.set_meeting_status(meeting_id, "ready")
     except Exception as exc:
         db.set_meeting_status(meeting_id, "error", error=str(exc)[:500])
@@ -202,6 +236,9 @@ def _process_meeting(meeting_id: int) -> None:
         pipeline.run(audio_path, out_dir, on_stage=on_stage)
         items = load_items_from_output(out_dir)
         db.replace_items(meeting_id, items)
+        stored = db.get_meeting(meeting_id)
+        if stored is not None:
+            adopt_brief_title(stored)
         db.set_meeting_status(meeting_id, "ready")
     except Exception as exc:
         traceback.print_exc()

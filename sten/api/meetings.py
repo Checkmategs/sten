@@ -16,6 +16,7 @@ from sten.api.auth import require_user
 from sten.audio import guess_audio_ext
 from sten.api.processing import (
     Conflict,
+    adopt_brief_title,
     is_busy,
     start_diarize,
     start_processing,
@@ -158,16 +159,19 @@ def list_meetings(
     include_id: int | None = None, user: dict = Depends(require_user)
 ) -> list[dict]:
     """Newest meetings first. Empty recordings stay hidden unless include_id."""
-    return [
-        {
-            "id": meeting["id"],
-            "title": meeting["title"],
-            "status": meeting["status"],
-            "created_at": meeting["created_at"],
-        }
-        for meeting in db.list_meetings(user["id"])
-        if _meeting_visible(meeting, include_id)
-    ]
+    rows = []
+    for meeting in db.list_meetings(user["id"]):
+        if not _meeting_visible(meeting, include_id):
+            continue
+        rows.append(
+            {
+                "id": meeting["id"],
+                "title": adopt_brief_title(meeting),
+                "status": meeting["status"],
+                "created_at": meeting["created_at"],
+            }
+        )
+    return rows
 
 
 @router.post("/meetings")
@@ -181,6 +185,7 @@ def create_meeting(body: CreateMeetingBody, user: dict = Depends(require_user)) 
 @router.get("/meetings/{meeting_id}")
 def get_meeting(meeting_id: int, user: dict = Depends(require_user)) -> dict:
     meeting = _require_meeting(meeting_id, user)
+    meeting = {**meeting, "title": adopt_brief_title(meeting)}
     items = db.list_items(meeting_id)
     counts = db.count_item_statuses(meeting_id)
     return {**_public_meeting(meeting), "items": items, "counts": counts}
