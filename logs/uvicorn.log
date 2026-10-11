@@ -1056,3 +1056,249 @@ INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers HTTP/1.1" 200 OK
 INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87 HTTP/1.1" 200 OK
 INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
 INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     10.91.0.55:0 - "GET /sten/m/87/consensus HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-in9AoPYd.js HTTP/1.1" 304 Not Modified
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-IGX03p_D.css HTTP/1.1" 304 Not Modified
+INFO:     10.91.0.55:0 - "GET /sten/favicon.svg?v=2 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/auth/me HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/report HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings?include_id=87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1644179]
+INFO:     Started server process [1649862]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     10.91.0.55:0 - "GET /sten/m/87/consensus HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-D-7lZHJX.js HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-D4PIQcQ9.css HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/auth/me HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/report HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings?include_id=87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:36782 - "GET /sten/api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36786 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 401 Unauthorized
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%203 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%204 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%205 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%206 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%207 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%202 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%204 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "POST /sten/api/meetings/87/speakers/rename HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%93%D0%B5%D0%BE%D1%80%D0%B3%D0%B8%D0%B9 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%205 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47750 - "GET /sten/api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47764 - "GET /sten/api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47778 - "GET /sten/api/meetings/90/report HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47780 - "GET /sten/api/meetings/90/speakers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47794 - "GET /sten/api/meetings?include_id=90 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47772 - "GET /sten/api/meetings/90/transcript HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47768 - "GET /sten/api/meetings/90 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47798 - "GET /sten/api/meetings/90/report HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47830 - "GET /sten/api/meetings?include_id=90 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47814 - "GET /sten/api/meetings/90/speakers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47838 - "GET /sten/api/meetings/90/transcript HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47842 - "GET /sten/api/meetings/90 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47846 - "GET /sten/api/meetings/90/audio HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:47890 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%204 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47898 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%205 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47874 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%203 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47912 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%206 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47876 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%202 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47862 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "POST /sten/api/meetings/87/speakers/rename HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A4%D1%80%D0%B0%D0%BD%D1%86%D1%83%D0%B7 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43176 - "POST /sten/api/meetings/90/speakers/rename HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43190 - "GET /sten/api/meetings/90/transcript HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43200 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%9F%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B0%20%D0%B8%D0%BC%D0%B5%D0%BD%D0%B8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43214 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43228 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%203 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43250 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%205 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43230 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%202 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43236 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%204 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43254 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%9F%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B0%20%D0%B8%D0%BC%D0%B5%D0%BD%D0%B8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43264 - "POST /sten/api/meetings/90/speakers/rename HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43280 - "GET /sten/api/meetings/90/transcript HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43292 - "GET /sten/api/meetings/90/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%206 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%206 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "POST /sten/api/meetings/87/speakers/rename HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%97%D0%BE%D1%80%D0%B3 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%202 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "POST /sten/api/meetings/87/speakers/rename HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A0%D0%BE%D0%BD HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%93%D0%B5%D0%BE%D1%80%D0%B3%D0%B8%D0%B9 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%205 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%203 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%97%D0%BE%D1%80%D0%B3 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A0%D0%BE%D0%BD HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A4%D1%80%D0%B0%D0%BD%D1%86%D1%83%D0%B7 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%203 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A4%D1%80%D0%B0%D0%BD%D1%86%D1%83%D0%B7 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%97%D0%BE%D1%80%D0%B3 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%93%D0%B5%D0%BE%D1%80%D0%B3%D0%B8%D0%B9 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%205 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A0%D0%BE%D0%BD HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "POST /sten/api/meetings/87/speakers/delete HTTP/1.1" 409 Conflict
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A4%D1%80%D0%B0%D0%BD%D1%86%D1%83%D0%B7 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/m/87/consensus HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-D-7lZHJX.js HTTP/1.1" 304 Not Modified
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-D4PIQcQ9.css HTTP/1.1" 304 Not Modified
+INFO:     10.91.0.55:0 - "GET /sten/api/auth/me HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/favicon.svg?v=2 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings?include_id=87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/report HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%93%D0%B5%D0%BE%D1%80%D0%B3%D0%B8%D0%B9 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%203 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A0%D0%BE%D0%BD HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%97%D0%BE%D1%80%D0%B3 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%205 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A4%D1%80%D0%B0%D0%BD%D1%86%D1%83%D0%B7 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%97%D0%BE%D1%80%D0%B3 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A0%D0%BE%D0%BD HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%93%D0%B5%D0%BE%D1%80%D0%B3%D0%B8%D0%B9 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%97%D0%BE%D1%80%D0%B3 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A0%D0%BE%D0%BD HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%205 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%203 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A4%D1%80%D0%B0%D0%BD%D1%86%D1%83%D0%B7 HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1649862]
+INFO:     Started server process [1657689]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:38122 - "GET /sten/api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56170 - "GET /sten/api/meetings/90/report HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56180 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%203 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/m/87/consensus HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-D4PIQcQ9.css HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-C55x5wga.js HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/favicon.svg?v=2 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/auth/me HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/report HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings?include_id=87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%97%D0%BE%D1%80%D0%B3 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A4%D1%80%D0%B0%D0%BD%D1%86%D1%83%D0%B7 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/m/87/consensus HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-C55x5wga.js HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-D4PIQcQ9.css HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/favicon.svg?v=2 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/auth/me HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/report HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings?include_id=87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A4%D1%80%D0%B0%D0%BD%D1%86%D1%83%D0%B7 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A0%D0%BE%D0%BD HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%97%D0%BE%D1%80%D0%B3 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%93%D0%B5%D0%BE%D1%80%D0%B3%D0%B8%D0%B9 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%203 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%205 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "POST /sten/api/meetings/87/speakers/rename HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%94%D0%B5%D0%BD%D0%B8%D1%81 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%205 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "POST /sten/api/meetings/87/speakers/rename HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%AD%D0%BA%D1%81%D0%BF%D0%B5%D1%80%D1%82 HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1657689]
+INFO:     Started server process [1662534]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:36048 - "GET /sten/api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57520 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1662534]
+INFO:     Started server process [1669013]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:57286 - "GET /sten/api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57302 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/m/87/consensus HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-C55x5wga.js HTTP/1.1" 304 Not Modified
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-D4PIQcQ9.css HTTP/1.1" 304 Not Modified
+INFO:     10.91.0.55:0 - "GET /sten/api/auth/me HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/favicon.svg?v=2 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/report HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings?include_id=87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%AD%D0%BA%D1%81%D0%BF%D0%B5%D1%80%D1%82 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A4%D1%80%D0%B0%D0%BD%D1%86%D1%83%D0%B7 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A0%D0%BE%D0%BD HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%94%D0%B5%D0%BD%D0%B8%D1%81 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%97%D0%BE%D1%80%D0%B3 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%93%D0%B5%D0%BE%D1%80%D0%B3%D0%B8%D0%B9 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/m/87/consensus HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-C55x5wga.js HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/assets/index-D4PIQcQ9.css HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/auth/me HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/favicon.svg?v=2 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/report HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/transcript HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings?include_id=87 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/audio HTTP/1.1" 206 Partial Content
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%93%D0%B5%D0%BE%D1%80%D0%B3%D0%B8%D0%B9 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A0%D0%BE%D0%BD HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%97%D0%BE%D1%80%D0%B3 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%94%D0%B5%D0%BD%D0%B8%D1%81 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%AD%D0%BA%D1%81%D0%BF%D0%B5%D1%80%D1%82 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A4%D1%80%D0%B0%D0%BD%D1%86%D1%83%D0%B7 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%93%D0%B5%D0%BE%D1%80%D0%B3%D0%B8%D0%B9 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%94%D0%B5%D0%BD%D0%B8%D1%81 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%97%D0%BE%D1%80%D0%B3 HTTP/1.1" 200 OK
+INFO:     10.91.0.55:0 - "GET /sten/api/meetings/87/speakers/sample?name=%D0%A4%D1%80%D0%B0%D0%BD%D1%86%D1%83%D0%B7 HTTP/1.1" 200 OK

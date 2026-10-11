@@ -287,8 +287,7 @@ def report_to_items(report: MeetingReport) -> list[SummaryItem]:
 
 
 def _participant_line(person: Participant) -> str:
-    parts = [person.speaker, person.role, person.name]
-    return " — ".join(part for part in parts if part)
+    return person.speaker
 
 
 def _decision_line(decision: Decision) -> str:
@@ -317,7 +316,7 @@ def render_report_text(report: MeetingReport) -> str:
         blocks.extend(lines)
 
     add("Название встречи", [report.title] if report.title else [])
-    add("Участники", [_participant_line(p) for p in report.participants])
+    add("Участники", [_participant_line(p) for p in report.participants if p.speaker])
     add("Краткое резюме", [report.summary] if report.summary else [])
     add(
         "Ключевые темы",

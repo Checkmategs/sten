@@ -19,7 +19,7 @@ type TranscriptView = {
   error: string | null
 }
 
-type MeetingTab = 'transcript' | 'report'
+type MeetingTab = 'transcript' | 'report' | 'speakers'
 
 function transcriptView(res: TranscriptResponse): TranscriptView {
   return {
@@ -240,10 +240,6 @@ function MeetingTitle({
   )
 }
 
-function personLine(speaker: string, role: string, name: string): string {
-  return [speaker, role, name].filter(Boolean).join(' — ')
-}
-
 function ReportView({ report }: { report: MeetingReport }) {
   const hasBody =
     report.title ||
@@ -264,15 +260,15 @@ function ReportView({ report }: { report: MeetingReport }) {
           <p>{report.title}</p>
         </section>
       ) : null}
-      {report.participants.length > 0 ? (
+      {report.participants.some((person) => person.speaker) ? (
         <section className="consensus-section">
           <h2>Участники</h2>
           <ul className="report-list">
-            {report.participants.map((person, index) => (
-              <li key={`${person.speaker}-${index}`}>
-                {personLine(person.speaker, person.role, person.name)}
-              </li>
-            ))}
+            {report.participants.map((person, index) =>
+              person.speaker ? (
+                <li key={`${person.speaker}-${index}`}>{person.speaker}</li>
+              ) : null,
+            )}
           </ul>
         </section>
       ) : null}
@@ -339,13 +335,69 @@ function ReportView({ report }: { report: MeetingReport }) {
   )
 }
 
+function SpeakerClip({ name, src }: { name: string; src: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const [playing, setPlaying] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const [length, setLength] = useState('10 с')
+
+  const toggle = () => {
+    const audio = audioRef.current
+    if (!audio) return
+    if (!audio.paused) {
+      audio.pause()
+      return
+    }
+    document.querySelectorAll('audio.speaker-clip').forEach((node) => {
+      if (node !== audio) (node as HTMLAudioElement).pause()
+    })
+    void audio.play().catch(() => setFailed(true))
+  }
+
+  if (failed) {
+    return <span className="speaker-sample-missing">Фрагмент недоступен</span>
+  }
+
+  return (
+    <div className="speaker-sample">
+      <button
+        type="button"
+        className="speaker-play"
+        aria-label={playing ? `Пауза, ${name}` : `Прослушать фрагмент голоса, ${name}`}
+        onClick={toggle}
+      >
+        {playing ? 'Пауза' : 'Прослушать'}
+      </button>
+      <span className="speaker-sample-length">{length}</span>
+      <audio
+        ref={audioRef}
+        className="speaker-clip"
+        preload="metadata"
+        src={src}
+        onLoadedMetadata={(event) => {
+          const seconds = event.currentTarget.duration
+          if (Number.isFinite(seconds) && seconds > 0) {
+            setLength(`${Math.max(1, Math.round(seconds))} с`)
+          }
+        }}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+        onError={() => setFailed(true)}
+      />
+    </div>
+  )
+}
+
 function SpeakersPanel({
+  meetingId,
   speakers,
   busy,
   error,
   onRename,
   onDelete,
 }: {
+  meetingId: number
   speakers: SpeakerRow[]
   busy: boolean
   error: string | null
@@ -354,8 +406,6 @@ function SpeakersPanel({
 }) {
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
-
-  if (speakers.length === 0 && !error) return null
 
   const startEdit = (name: string) => {
     setEditing(name)
@@ -376,48 +426,59 @@ function SpeakersPanel({
     }
   }
 
+  if (speakers.length === 0 && !error) {
+    return <p className="consensus-empty">Спикеры появятся после разметки записи.</p>
+  }
+
   return (
-    <section className="speakers-panel" aria-label="Спикеры">
-      <h2>Спикеры</h2>
+    <div className="speakers-panel">
       <ul className="speaker-list">
         {speakers.map((speaker) => (
           <li key={speaker.name} className="speaker-row">
-            {editing === speaker.name ? (
-              <input
-                className="speaker-input"
-                value={draft}
-                maxLength={80}
-                aria-label={`Имя спикера ${speaker.name}`}
-                disabled={busy}
-                autoFocus
-                onChange={(event) => setDraft(event.target.value)}
-                onBlur={() => void save(speaker.name)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    event.currentTarget.blur()
-                  }
-                  if (event.key === 'Escape') {
-                    event.preventDefault()
-                    setEditing(null)
-                  }
-                }}
-              />
-            ) : (
-              <span className="speaker-name">
-                {speaker.name}
-                <span className="speaker-count">{speaker.count}</span>
-              </span>
-            )}
+            <div className="speaker-main">
+              {editing === speaker.name ? (
+                <input
+                  className="speaker-input"
+                  value={draft}
+                  maxLength={80}
+                  aria-label={`Имя спикера ${speaker.name}`}
+                  disabled={busy}
+                  autoFocus
+                  onChange={(event) => setDraft(event.target.value)}
+                  onBlur={() => void save(speaker.name)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      event.currentTarget.blur()
+                    }
+                    if (event.key === 'Escape') {
+                      event.preventDefault()
+                      setEditing(null)
+                    }
+                  }}
+                />
+              ) : (
+                <span className="speaker-name">
+                  {speaker.name}
+                  <span className="speaker-count">{speaker.count}</span>
+                </span>
+              )}
+              {speaker.count > 0 ? (
+                <SpeakerClip
+                  name={speaker.name}
+                  src={api.speakerSampleUrl(meetingId, speaker.name)}
+                />
+              ) : null}
+            </div>
             <button
               type="button"
               className="speaker-action"
-              aria-label={`Редактировать ${speaker.name}`}
+              aria-label={`Переименовать ${speaker.name}`}
               disabled={busy}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => startEdit(speaker.name)}
             >
-              Редактировать
+              Переименовать
             </button>
             <button
               type="button"
@@ -437,7 +498,7 @@ function SpeakersPanel({
           {error}
         </p>
       ) : null}
-    </section>
+    </div>
   )
 }
 
@@ -558,7 +619,8 @@ export function ConsensusPage() {
     window.dispatchEvent(new Event('sten-meetings-changed'))
   }
 
-  const copyText = tab === 'report' ? report?.text || '' : transcript?.text || ''
+  const copyText =
+    tab === 'report' ? report?.text || '' : tab === 'transcript' ? transcript?.text || '' : ''
 
   const handleCopy = async () => {
     if (!copyText) return
@@ -644,9 +706,11 @@ export function ConsensusPage() {
       ? copied
         ? 'Скопировано'
         : 'Копировать обзор'
-      : copied
-        ? 'Скопировано'
-        : 'Копировать текст записи'
+      : tab === 'transcript'
+        ? copied
+          ? 'Скопировано'
+          : 'Копировать текст записи'
+        : 'Копировать'
 
   return (
     <main className="consensus-page">
@@ -713,6 +777,15 @@ export function ConsensusPage() {
         <button
           type="button"
           role="tab"
+          aria-selected={tab === 'speakers'}
+          className="meeting-tab"
+          onClick={() => setTab('speakers')}
+        >
+          Спикеры
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={tab === 'transcript'}
           className="meeting-tab"
           onClick={() => setTab('transcript')}
@@ -732,13 +805,6 @@ export function ConsensusPage() {
 
       {tab === 'transcript' ? (
         <section className="consensus-transcript" role="tabpanel" aria-label="Полный текст записи">
-          <SpeakersPanel
-            speakers={speakers}
-            busy={speakerBusy}
-            error={speakerError}
-            onRename={handleRenameSpeaker}
-            onDelete={handleDeleteSpeaker}
-          />
           {transcriptLoading ? <p className="consensus-loading">Загрузка текста…</p> : null}
           {transcriptError ? (
             <p className="consensus-error" role="alert">
@@ -777,13 +843,24 @@ export function ConsensusPage() {
             />
           )}
         </section>
-      ) : (
+      ) : tab === 'report' ? (
         <section role="tabpanel" aria-label="Краткий обзор совещания">
           {report ? (
             <ReportView report={report} />
           ) : (
             <p className="consensus-empty">Краткий обзор появится после обработки записи.</p>
           )}
+        </section>
+      ) : (
+        <section role="tabpanel" aria-label="Спикеры">
+          <SpeakersPanel
+            meetingId={meetingId}
+            speakers={speakers}
+            busy={speakerBusy}
+            error={speakerError}
+            onRename={handleRenameSpeaker}
+            onDelete={handleDeleteSpeaker}
+          />
         </section>
       )}
     </main>

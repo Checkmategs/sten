@@ -1,9 +1,19 @@
+import io
 import json
 from pathlib import Path
 
 import pytest
 
-from sten.speakers import SPEAKER_IN_USE, SpeakerInUse, delete_speaker, rename_speaker
+from sten.speakers import (
+    SAMPLE_SECONDS,
+    SPEAKER_IN_USE,
+    SpeakerInUse,
+    delete_speaker,
+    rename_speaker,
+    render_speaker_sample,
+    single_voice_spans,
+    speaker_voice_spans,
+)
 from sten.transcribe import Segment
 from sten.speakers import save_segments, write_registry
 
@@ -52,6 +62,175 @@ def test_rename_replaces_every_turn_and_report_labels(tmp_path: Path):
     assert report["participants"][0]["speaker"] == "Сергей"
     assert report["decisions"][0]["initiator"] == "Сергей"
     assert report["tasks"][0]["assignee"] == "Сергей"
+
+
+def test_voice_spans_take_the_longest_clean_stretch():
+    segments = [
+        Segment(0.0, 3.0, "а", "Спикер 1"),
+        Segment(3.0, 4.0, "чужой", "Спикер 2"),
+        Segment(4.0, 20.0, "б", "Спикер 1"),
+    ]
+    # The opening is short and sits against another voice. The sample is the
+    # middle of the long uninterrupted stretch, not the first ten seconds.
+    assert speaker_voice_spans(segments, "Спикер 1") == [(7.0, 17.0)]
+    assert SAMPLE_SECONDS == 10.0
+
+
+def test_voice_span_keeps_a_short_breath_and_skips_a_pause():
+    breath = [
+        Segment(0.0, 4.0, "а", "Спикер 1"),
+        Segment(4.2, 9.0, "б", "Спикер 1"),
+    ]
+    assert speaker_voice_spans(breath, "Спикер 1") == [(0.0, 9.0)]
+    pause = [
+        Segment(0.0, 4.0, "а", "Спикер 1"),
+        Segment(6.0, 11.0, "б", "Спикер 1"),
+    ]
+    assert speaker_voice_spans(pause, "Спикер 1") == [(6.0, 11.0)]
+
+
+def _keep_ranges(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "sten.speakers.segment_single_voice",
+        lambda path, ranges: ranges,
+    )
+
+
+def test_single_voice_spans_stop_at_overlap_and_a_second_person():
+    hop = 0.1
+    frames: list[list[float]] = []
+    frames += [[0.9, 0.05]] * 10
+    frames += [[0.8, 0.8]] * 5
+    frames += [[0.05, 0.9]] * 20
+    assert single_voice_spans(frames, hop, 0.0) == [(0.0, 1.0), (1.5, 3.5)]
+
+
+def test_sample_wav_is_ten_seconds_of_that_speaker(tmp_path: Path, monkeypatch):
+    _keep_ranges(monkeypatch)
+    import wave
+
+    out = _meeting(tmp_path)
+    save_segments(
+        out,
+        [
+            Segment(0.0, 3.0, "а", "Спикер 1"),
+            Segment(3.0, 4.0, "чужой", "Спикер 2"),
+            Segment(4.0, 20.0, "б", "Спикер 1"),
+        ],
+    )
+    rate = 16000
+    wav_path = out / "audio.wav"
+    with wave.open(str(wav_path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(b"\x00\x00" * (20 * rate))
+
+    payload = render_speaker_sample(out, "Спикер 1")
+    with wave.open(io.BytesIO(payload), "rb") as handle:
+        assert handle.getnframes() == 10 * rate
+        assert handle.getframerate() == rate
+
+
+def test_sample_uses_clean_speech_not_a_pause_or_other_voice(tmp_path: Path, monkeypatch):
+    _keep_ranges(monkeypatch)
+    import array
+    import wave
+
+    out = _meeting(tmp_path)
+    save_segments(
+        out,
+        [
+            Segment(0.0, 20.0, "долго", "Спикер 1"),
+            Segment(6.0, 8.0, "чужой", "Спикер 2"),
+        ],
+    )
+    rate = 16000
+    samples = array.array("h")
+    samples.extend([2000] * (3 * rate))
+    samples.extend([0] * (3 * rate))
+    samples.extend([9000] * (2 * rate))
+    samples.extend([2000] * (12 * rate))
+    wav_path = out / "audio.wav"
+    with wave.open(str(wav_path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(samples.tobytes())
+
+    payload = render_speaker_sample(out, "Спикер 1")
+    with wave.open(io.BytesIO(payload), "rb") as handle:
+        assert handle.getnframes() == 10 * rate
+        heard = array.array("h")
+        heard.frombytes(handle.readframes(handle.getnframes()))
+    assert heard
+    assert max(abs(sample) for sample in heard) == 2000
+    assert all(sample != 9000 and sample != 0 for sample in heard)
+
+
+def test_sample_is_only_the_single_voice_interval(tmp_path: Path, monkeypatch):
+    import array
+    import wave
+
+    out = _meeting(tmp_path)
+    save_segments(out, [Segment(0.0, 8.0, "смешанное", "Спикер 1")])
+    rate = 16000
+    samples = array.array("h", [1000] * (2 * rate) + [4000] * (3 * rate) + [1000] * (3 * rate))
+    wav_path = out / "audio.wav"
+    with wave.open(str(wav_path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(samples.tobytes())
+    monkeypatch.setattr(
+        "sten.speakers.segment_single_voice",
+        lambda path, ranges: [(2.0, 5.0)],
+    )
+
+    payload = render_speaker_sample(out, "Спикер 1")
+    with wave.open(io.BytesIO(payload), "rb") as handle:
+        heard = array.array("h")
+        heard.frombytes(handle.readframes(handle.getnframes()))
+        duration = handle.getnframes() / handle.getframerate()
+    assert duration == pytest.approx(3.0, abs=0.02)
+    assert heard
+    assert set(heard) == {4000}
+
+
+def test_loud_spike_does_not_drop_the_longer_quiet_phrase(tmp_path: Path, monkeypatch):
+    _keep_ranges(monkeypatch)
+    import array
+    import wave
+
+    out = _meeting(tmp_path)
+    save_segments(
+        out,
+        [
+            Segment(0.0, 3.0, "коротко", "Спикер 1"),
+            Segment(5.0, 11.0, "длинно", "Спикер 1"),
+        ],
+    )
+    rate = 16000
+    samples = array.array("h", [3000] * (3 * rate))
+    samples.extend([0] * (2 * rate))
+    samples.extend([800] * (6 * rate))
+    spike_at = 8 * rate
+    for index in range(spike_at, spike_at + int(0.1 * rate)):
+        samples[index] = 20000
+    wav_path = out / "audio.wav"
+    with wave.open(str(wav_path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(samples.tobytes())
+
+    payload = render_speaker_sample(out, "Спикер 1")
+    with wave.open(io.BytesIO(payload), "rb") as handle:
+        heard = array.array("h")
+        heard.frombytes(handle.readframes(handle.getnframes()))
+        duration = handle.getnframes() / handle.getframerate()
+    assert duration > 5
+    assert heard.count(800) > heard.count(3000)
 
 
 def test_merge_keeps_unused_speaker_until_delete(tmp_path: Path):

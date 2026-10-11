@@ -1179,32 +1179,59 @@ code {
 }
 
 .speakers-panel {
-  margin-bottom: 1.75rem;
-}
-
-.speakers-panel h2 {
-  margin: 0 0 0.75rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--sten-muted);
+  margin: 0;
 }
 
 .speaker-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
 }
 
 .speaker-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
   min-height: 2rem;
+  padding: 1rem 0;
+}
+
+.speaker-row + .speaker-row {
+  border-top: 1px solid var(--sten-border);
+}
+
+.speaker-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.speaker-sample {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.speaker-play {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.speaker-play:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.speaker-sample-length,
+.speaker-sample-missing {
+  color: var(--sten-muted);
+  font-size: 0.85rem;
 }
 
 .speaker-name {

@@ -341,6 +341,30 @@ def get_audio(meeting_id: int, user: dict = Depends(require_user)) -> FileRespon
     return FileResponse(path, media_type=media, filename=path.name)
 
 
+@router.get("/meetings/{meeting_id}/speakers/sample")
+def get_speaker_sample(
+    meeting_id: int,
+    name: str = Query(min_length=1, max_length=80),
+    user: dict = Depends(require_user),
+) -> Response:
+    import wave
+
+    from sten.speakers import SpeakerNotFound, SpeakerSampleMissing, render_speaker_sample
+
+    _require_meeting(meeting_id, user)
+    try:
+        payload = render_speaker_sample(_meeting_dir(meeting_id), name)
+    except SpeakerNotFound as exc:
+        raise HTTPException(status_code=404, detail="speaker not found") from exc
+    except SpeakerSampleMissing as exc:
+        raise HTTPException(status_code=404, detail="no sample") from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="no audio") from exc
+    except wave.Error as exc:
+        raise HTTPException(status_code=404, detail="no audio") from exc
+    return Response(content=payload, media_type="audio/wav")
+
+
 @router.get("/meetings/{meeting_id}/speakers")
 def get_speakers(meeting_id: int, user: dict = Depends(require_user)) -> dict:
     from sten.speakers import list_speakers

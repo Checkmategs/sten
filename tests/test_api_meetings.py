@@ -1,3 +1,4 @@
+import io
 from unittest.mock import MagicMock
 
 import pytest
@@ -488,6 +489,40 @@ def test_report_audio_and_export(client, tmp_path):
     docx = client.get(f"/api/meetings/{mid}/export", params={"format": "docx"})
     assert docx.status_code == 200
     assert docx.content[:2] == b"PK"
+
+
+def test_speaker_sample_is_wav(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "sten.speakers.segment_single_voice",
+        lambda path, ranges: ranges,
+    )
+    import wave
+
+    mid = _ready_meeting(client, tmp_path)
+    out = tmp_path / "data" / "meetings" / str(mid)
+    (out / "transcript.json").write_text(
+        '[{"start":0,"end":12,"text":"Привет","speaker":"Спикер 1"}]',
+        encoding="utf-8",
+    )
+    rate = 8000
+    with wave.open(str(out / "audio.wav"), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(b"\x00\x00" * (12 * rate))
+
+    sample = client.get(
+        f"/api/meetings/{mid}/speakers/sample", params={"name": "Спикер 1"}
+    )
+    assert sample.status_code == 200
+    assert sample.headers["content-type"].startswith("audio/wav")
+    with wave.open(io.BytesIO(sample.content), "rb") as handle:
+        assert handle.getnframes() == 10 * rate
+
+    missing = client.get(
+        f"/api/meetings/{mid}/speakers/sample", params={"name": "Никто"}
+    )
+    assert missing.status_code == 404
 
 
 def test_speaker_rename_and_blocked_delete(client, tmp_path):

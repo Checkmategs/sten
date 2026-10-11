@@ -43,8 +43,9 @@ def test_parse_report_drops_unknown_placeholders():
 def test_render_report_text_omits_empty_assignee_and_due():
     text = render_report_text(_sample())
     assert "Название встречи\nИнструмент мониторинга" in text
-    assert "Спикер 1 — Руководитель проекта — Сергей" in text
-    assert "Спикер 2" in text
+    assert "Участники\nСпикер 1\nСпикер 2\n" in text
+    assert "Руководитель проекта" not in text
+    assert "Сергей" not in text.split("Участники", 1)[1].split("Краткое резюме", 1)[0]
     assert "не указан" not in text
     assert "инициатор: Сергей" in text
     assert "ответственный" not in text

@@ -263,6 +263,10 @@ export const api = {
     return `${baseURL}/api/meetings/${id}/audio`
   },
 
+  speakerSampleUrl(id: number, name: string): string {
+    return `${baseURL}/api/meetings/${id}/speakers/sample?name=${encodeURIComponent(name)}`
+  },
+
   getSpeakers(id: number): Promise<{ speakers: SpeakerRow[] }> {
     return request(`/api/meetings/${id}/speakers`)
   },

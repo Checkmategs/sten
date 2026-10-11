@@ -58,8 +58,7 @@ def _docx_paragraphs(report: MeetingReport) -> list[str]:
     if report.participants:
         heading("Участники")
         for person in report.participants:
-            parts = [person.speaker, person.role, person.name]
-            body(" — ".join(part for part in parts if part))
+            body(person.speaker)
     if report.summary:
         heading("Краткое резюме")
         body(report.summary)
