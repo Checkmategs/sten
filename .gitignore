@@ -8,3 +8,4 @@ sten/web/dist/
 
 *.webm
 nginx/
+logs/uvicorn.log
