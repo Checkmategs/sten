@@ -30,6 +30,9 @@ export function ProcessPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [line, setLine] = useState(0)
   const [linePhase, setLinePhase] = useState<'in' | 'out'>('in')
+  const [opening, setOpening] = useState(false)
+  const openingRef = useRef(false)
+  const aliveRef = useRef(true)
 
   useEffect(() => {
     headingRef.current?.focus()
@@ -42,17 +45,35 @@ export function ProcessPage() {
     }
     try {
       const res = await api.getStatus(meetingId)
-      setStatus(res.status)
       setError(res.error)
       setProgress(res.progress)
       setLoadError(null)
       if (res.status === 'ready' || res.status === 'consensus') {
-        navigate(`/m/${meetingId}/consensus`, { replace: true })
+        if (openingRef.current) return
+        openingRef.current = true
+        setOpening(true)
+        try {
+          const materials = await api.loadMeetingMaterials(meetingId)
+          if (!aliveRef.current) return
+          navigate(`/m/${meetingId}/consensus`, { replace: true, state: { materials } })
+        } catch {
+          if (!aliveRef.current) return
+          navigate(`/m/${meetingId}/consensus`, { replace: true })
+        }
+        return
       }
+      setStatus(res.status)
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : String(err))
     }
   }, [meetingId, navigate])
+
+  useEffect(() => {
+    aliveRef.current = true
+    return () => {
+      aliveRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     void poll()
@@ -60,8 +81,9 @@ export function ProcessPage() {
     return () => window.clearInterval(timer)
   }, [poll])
 
-  const showFlavor = status === 'processing' && !loadError && progress?.step !== 3
-  const diarizing = status === 'processing' && !loadError && progress?.step === 3
+  const showFlavor =
+    status === 'processing' && !opening && !loadError && progress?.step !== 3
+  const diarizing = status === 'processing' && !opening && !loadError && progress?.step === 3
   const percent = progress?.percent ?? 0
 
   useEffect(() => {
@@ -92,7 +114,9 @@ export function ProcessPage() {
   }
 
   const failed = status === 'error' || Boolean(loadError)
-  const caption = diarizing
+  const caption = opening
+    ? 'Загрузка…'
+    : diarizing
     ? progress?.label || 'Идёт разметка спикеров…'
     : showFlavor
     ? PROCESSING_LINES[line]
@@ -124,7 +148,7 @@ export function ProcessPage() {
             <circle className="process-loader-track" cx="50" cy="50" r="42" />
             <circle className="process-loader-arc" cx="50" cy="50" r="42" />
           </svg>
-          {showFlavor || diarizing ? (
+          {showFlavor || diarizing || (opening && percent > 0) ? (
             <span className="process-percent" aria-hidden="true">
               {percent}%
             </span>

@@ -9,3 +9,4 @@ sten/web/dist/
 *.webm
 nginx/
 logs/uvicorn.log
+.hf_token

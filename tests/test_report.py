@@ -69,6 +69,8 @@ def test_build_report_single_chunk(monkeypatch):
     def fake_generate(prompt, *, schema=None, model=None, **kwargs):
         assert schema is not None
         assert "Спикер 1" in prompt
+        assert kwargs["num_ctx"] == report_mod._REPORT_CTX
+        assert kwargs["num_predict"] == report_mod._REPORT_PREDICT
         return (
             '{"title":"Тема","summary":"Кратко","outcome":"",'
             '"participants":[{"speaker":"Спикер 1","role":"","name":"Анна"}],'

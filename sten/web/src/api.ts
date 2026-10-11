@@ -142,6 +142,15 @@ export interface SpeakerRow {
   count: number
 }
 
+/** Meeting screen payload: transcript and brief arrive together. */
+export interface MeetingMaterials {
+  meeting: MeetingDetail
+  transcript: TranscriptResponse
+  report: MeetingReport
+  speakers: SpeakerRow[]
+  speakerError: string | null
+}
+
 export type ExportFormat = 'txt' | 'srt' | 'docx'
 
 export interface PatchItemBody {
@@ -256,6 +265,29 @@ export const api = {
 
   getSpeakers(id: number): Promise<{ speakers: SpeakerRow[] }> {
     return request(`/api/meetings/${id}/speakers`)
+  },
+
+  /** Meeting, transcript, and brief in one round so the screen can open complete. */
+  async loadMeetingMaterials(id: number): Promise<MeetingMaterials> {
+    const [meeting, transcript, report, speakers] = await Promise.all([
+      this.getMeeting(id),
+      this.getTranscript(id),
+      this.getReport(id),
+      this.getSpeakers(id).then(
+        (res) => ({ speakers: res.speakers, speakerError: null as string | null }),
+        (err: unknown) => ({
+          speakers: [] as SpeakerRow[],
+          speakerError: err instanceof Error ? err.message : String(err),
+        }),
+      ),
+    ])
+    return {
+      meeting,
+      transcript,
+      report,
+      speakers: speakers.speakers,
+      speakerError: speakers.speakerError,
+    }
   },
 
   renameSpeaker(

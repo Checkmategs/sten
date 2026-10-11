@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import wave
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -120,6 +121,29 @@ def _diarize_device(device_index: int | None):
     return device
 
 
+def load_waveform(wav: Path) -> dict:
+    """Read a 16-bit PCM wav into the dict pyannote accepts.
+
+    Avoids torchcodec, which fails to load on this machine.
+    """
+    import numpy as np
+    import torch
+
+    with wave.open(str(wav), "rb") as handle:
+        channels = handle.getnchannels()
+        rate = handle.getframerate()
+        width = handle.getsampwidth()
+        frames = handle.readframes(handle.getnframes())
+    if width != 2:
+        raise RuntimeError(f"Ожидался 16-bit wav, получено {width * 8}-bit")
+    audio = np.frombuffer(frames, dtype="<i2").astype(np.float32) / 32768.0
+    if channels > 1:
+        audio = audio.reshape(-1, channels).T
+    else:
+        audio = audio.reshape(1, -1)
+    return {"waveform": torch.from_numpy(audio.copy()), "sample_rate": rate}
+
+
 def diarize_wav(
     wav: Path, device_index: int | None = None
 ) -> list[tuple[float, float, str]]:
@@ -145,7 +169,7 @@ def diarize_wav(
     print(f"    pyannote на {device}", flush=True)
     pipeline.to(device)
 
-    annotation = pipeline(str(wav))
+    annotation = pipeline(load_waveform(wav))
     # pyannote 3.x may return DiarizeOutput with .speaker_diarization
     if hasattr(annotation, "speaker_diarization"):
         annotation = annotation.speaker_diarization

@@ -4,13 +4,23 @@ from sten.config import OLLAMA_MODEL, OLLAMA_URL
 
 
 def generate(
-    prompt: str, *, schema: dict | None = None, model: str = OLLAMA_MODEL, num_ctx: int = 8192
+    prompt: str,
+    *,
+    schema: dict | None = None,
+    model: str = OLLAMA_MODEL,
+    num_ctx: int = 8192,
+    num_predict: int | None = None,
 ) -> str:
+    options: dict = {"temperature": 0.2, "num_ctx": num_ctx}
+    if num_predict is not None:
+        options["num_predict"] = num_predict
     payload = {
         "model": model,
         "prompt": prompt,
         "stream": False,
-        "options": {"temperature": 0.2, "num_ctx": num_ctx},
+        # qwen3 пишет длинный скрытый ход рассуждений; для обзора он только тормозит ответ.
+        "think": False,
+        "options": options,
     }
     if schema is not None:
         payload["format"] = schema

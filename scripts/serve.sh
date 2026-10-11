@@ -2,6 +2,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source env.sh 2>/dev/null || true
+# Token lives in .hf_token (gitignored). env.sh stays empty so it can be committed.
+if [ -z "${HF_TOKEN:-}" ] && [ -f .hf_token ]; then
+  HF_TOKEN="$(tr -d '[:space:]' < .hf_token)"
+  export HF_TOKEN
+fi
 # Fallback CUDA libs from the venv (faster-whisper / ctranslate2) if env.sh is absent.
 SP=".venv/lib/python3.12/site-packages"
 if [ -d "$SP/nvidia/cublas/lib" ]; then

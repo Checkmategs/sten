@@ -95,19 +95,19 @@ _INSTRUCTION = """Ты составляешь краткий обзор сове
 Не пиши «не указан», «неизвестно» и прочерки.
 
 - title — короткое название темы встречи, не имя файла.
-- summary — один абзац: о чём договорились и что это значит.
-- outcome — итог и следующий шаг.
+- summary — два-три предложения: о чём договорились.
+- outcome — одно предложение: итог и следующий шаг.
 - participants — по одному на каждую метку спикера из текста. speaker — точная метка
   (например «Спикер 1»). role и name — только если они прозвучали.
-- topics — ключевые темы: короткий title и одно предложение text.
-- decisions — принятые решения. initiator — имя или метка спикера, либо пустая строка.
-- tasks — конкретные действия. assignee и due — только если прозвучали, иначе пустые строки.
-Пиши по-русски."""
+- topics — не больше пяти. Короткий title и одно предложение text.
+- decisions — только явно принятые. initiator — имя или метка спикера, либо пустая строка.
+- tasks — только конкретные поручения. assignee и due — только если прозвучали, иначе пустые строки.
+Пиши по-русски, коротко."""
 
-_MAP_PROMPT = """Ниже фрагмент транскрипта. Выпиши факты для обзора совещания:
-название темы, участники (метка спикера, роль, имя — только если названы),
-краткое резюме фрагмента, темы, решения с инициатором, задачи с ответственным и сроком,
-итог. Чего не было в тексте — не дописывай. По-русски, маркированным списком.
+_MAP_PROMPT = """Ниже фрагмент транскрипта. Выпиши только факты для короткого обзора:
+название темы, участники (метка, роль и имя — только если названы),
+резюме в одном предложении, до трёх тем, решения, задачи.
+Не пересказывай фрагмент. Не больше десяти коротких пунктов. Чего не было — не дописывай.
 
 Фрагмент:
 {chunk}"""
@@ -127,7 +127,13 @@ _SINGLE_PROMPT = _INSTRUCTION + """
 Транскрипт:
 {chunk}"""
 
-_REDUCE_BUDGET_CHARS = 20000
+# Выжимки короткие, поэтому сборка держится в 8192, а не в 16384.
+_REDUCE_BUDGET_CHARS = 10000
+_MAP_CTX = 4096
+_REPORT_CTX = 8192
+# Короткий список фактов и компактный JSON. Длинный лимит заставлял модель писать лишнее.
+_MAP_PREDICT = 512
+_REPORT_PREDICT = 1024
 
 
 @dataclass
@@ -369,6 +375,8 @@ def build_report(
         raw = generate(
             hint + _SINGLE_PROMPT.format(chunk=chunks[0]),
             schema=REPORT_SCHEMA,
+            num_ctx=_REPORT_CTX,
+            num_predict=_REPORT_PREDICT,
         )
         tick(1.0)
         return parse_report(raw)
@@ -377,7 +385,13 @@ def build_report(
     partials: list[str] = []
     for index, chunk in enumerate(chunks):
         tick(index / (n_map + 1))
-        partials.append(generate(_MAP_PROMPT.format(chunk=chunk)))
+        partials.append(
+            generate(
+                _MAP_PROMPT.format(chunk=chunk),
+                num_ctx=_MAP_CTX,
+                num_predict=_MAP_PREDICT,
+            )
+        )
     while len("\n\n---\n\n".join(partials)) > _REDUCE_BUDGET_CHARS:
         next_partials: list[str] = []
         batches = _batch_partials(partials)
@@ -387,7 +401,8 @@ def build_report(
                 generate(
                     "Сожми выжимки в более короткий список фактов, без новых деталей.\n\n"
                     + batch,
-                    num_ctx=16384,
+                    num_ctx=_REPORT_CTX,
+                    num_predict=_MAP_PREDICT,
                 )
             )
         partials = next_partials
@@ -395,7 +410,8 @@ def build_report(
     raw = generate(
         hint + _REDUCE_PROMPT.format(partials="\n\n---\n\n".join(partials)),
         schema=REPORT_SCHEMA,
-        num_ctx=16384,
+        num_ctx=_REPORT_CTX,
+        num_predict=_REPORT_PREDICT,
     )
     tick(1.0)
     return parse_report(raw)

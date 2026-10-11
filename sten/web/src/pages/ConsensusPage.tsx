@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   api,
   apiDetail,
   type ExportFormat,
   type MeetingDetail,
+  type MeetingMaterials,
   type MeetingReport,
   type SpeakerRow,
+  type TranscriptResponse,
   type TranscriptTurn,
 } from '../api'
 
@@ -18,6 +20,22 @@ type TranscriptView = {
 }
 
 type MeetingTab = 'transcript' | 'report'
+
+function transcriptView(res: TranscriptResponse): TranscriptView {
+  return {
+    text: res.available ? res.text : '',
+    turns: res.turns ?? [],
+    diarized: Boolean(res.diarized),
+    error: res.error,
+  }
+}
+
+function materialsFor(state: unknown, meetingId: number): MeetingMaterials | null {
+  if (!state || typeof state !== 'object' || !('materials' in state)) return null
+  const materials = (state as { materials?: MeetingMaterials }).materials
+  if (!materials || materials.meeting.id !== meetingId) return null
+  return materials
+}
 
 function formatClock(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds))
@@ -426,17 +444,25 @@ function SpeakersPanel({
 /** Meeting screen: transcript, brief, playback, speakers, and export. */
 export function ConsensusPage() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const navigate = useNavigate()
   const meetingId = Number(id)
+  const seeded = materialsFor(location.state, meetingId)
 
-  const [meeting, setMeeting] = useState<MeetingDetail | null>(null)
+  const [meeting, setMeeting] = useState<MeetingDetail | null>(seeded?.meeting ?? null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [transcript, setTranscript] = useState<TranscriptView | null>(null)
+  const [transcript, setTranscript] = useState<TranscriptView | null>(
+    seeded ? transcriptView(seeded.transcript) : null,
+  )
   const [transcriptLoading, setTranscriptLoading] = useState(false)
   const [transcriptError, setTranscriptError] = useState<string | null>(null)
-  const [report, setReport] = useState<MeetingReport | null>(null)
-  const [speakers, setSpeakers] = useState<SpeakerRow[]>([])
+  const [report, setReport] = useState<MeetingReport | null>(seeded?.report ?? null)
+  const [speakers, setSpeakers] = useState<SpeakerRow[]>(seeded?.speakers ?? [])
   const [speakerBusy, setSpeakerBusy] = useState(false)
-  const [speakerError, setSpeakerError] = useState<string | null>(null)
+  const [speakerError, setSpeakerError] = useState<string | null>(
+    seeded?.speakerError ? apiDetail(seeded.speakerError) : null,
+  )
+  const [viewReady, setViewReady] = useState(seeded != null)
   const [tab, setTab] = useState<MeetingTab>('transcript')
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState<string | null>(null)
@@ -447,32 +473,12 @@ export function ConsensusPage() {
   const audioRef = useRef<HTMLAudioElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
 
-  const load = useCallback(async () => {
-    if (!Number.isFinite(meetingId) || meetingId <= 0) {
-      setLoadError('Некорректный идентификатор встречи')
-      return
-    }
-    try {
-      const data = await api.getMeeting(meetingId)
-      setMeeting(data)
-      setLoadError(null)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : String(err))
-    }
-  }, [meetingId])
-
   const loadTranscript = useCallback(async () => {
     if (!Number.isFinite(meetingId) || meetingId <= 0) return
     setTranscriptLoading(true)
     setTranscriptError(null)
     try {
-      const res = await api.getTranscript(meetingId)
-      setTranscript({
-        text: res.available ? res.text : '',
-        turns: res.turns ?? [],
-        diarized: Boolean(res.diarized),
-        error: res.error,
-      })
+      setTranscript(transcriptView(await api.getTranscript(meetingId)))
     } catch (err) {
       setTranscriptError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -480,34 +486,56 @@ export function ConsensusPage() {
     }
   }, [meetingId])
 
-  const loadReport = useCallback(async () => {
-    if (!Number.isFinite(meetingId) || meetingId <= 0) return
-    try {
-      setReport(await api.getReport(meetingId))
-    } catch {
-      setReport(null)
+  useEffect(() => {
+    if (!Number.isFinite(meetingId) || meetingId <= 0) {
+      setMeeting(null)
+      setLoadError('Некорректный идентификатор встречи')
+      setViewReady(true)
+      return
     }
-  }, [meetingId])
+    const apply = (materials: MeetingMaterials) => {
+      setMeeting(materials.meeting)
+      setTranscript(transcriptView(materials.transcript))
+      setReport(materials.report)
+      setSpeakers(materials.speakers)
+      setSpeakerError(materials.speakerError ? apiDetail(materials.speakerError) : null)
+      setLoadError(null)
+      setTranscriptError(null)
+    }
 
-  const loadSpeakers = useCallback(async () => {
-    if (!Number.isFinite(meetingId) || meetingId <= 0) return
-    try {
-      const res = await api.getSpeakers(meetingId)
-      setSpeakers(res.speakers)
-    } catch (err) {
-      setSpeakerError(apiDetail(err instanceof Error ? err.message : String(err)))
+    const ready = materialsFor(location.state, meetingId)
+    if (ready) {
+      apply(ready)
+      setViewReady(true)
+      return
     }
-  }, [meetingId])
+
+    let cancelled = false
+    setViewReady(false)
+    setLoadError(null)
+    setTranscriptError(null)
+    void (async () => {
+      try {
+        const materials = await api.loadMeetingMaterials(meetingId)
+        if (cancelled) return
+        apply(materials)
+      } catch (err) {
+        if (cancelled) return
+        setMeeting(null)
+        setLoadError(err instanceof Error ? err.message : String(err))
+      } finally {
+        if (!cancelled) setViewReady(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [meetingId, location.state])
 
   useEffect(() => {
-    void load()
-  }, [load])
-
-  useEffect(() => {
-    void loadTranscript()
-    void loadReport()
-    void loadSpeakers()
-  }, [loadTranscript, loadReport, loadSpeakers])
+    if (meeting?.status !== 'processing') return
+    navigate(`/m/${meetingId}/process`, { replace: true })
+  }, [meeting?.status, meetingId, navigate])
 
   useEffect(() => {
     return () => {
@@ -603,7 +631,7 @@ export function ConsensusPage() {
     )
   }
 
-  if (!meeting) {
+  if (!viewReady || !meeting || meeting.id !== meetingId || meeting.status === 'processing') {
     return (
       <main className="consensus-page">
         <p className="consensus-loading">Загрузка…</p>
@@ -751,7 +779,11 @@ export function ConsensusPage() {
         </section>
       ) : (
         <section role="tabpanel" aria-label="Краткий обзор совещания">
-          {report ? <ReportView report={report} /> : <p className="consensus-loading">Загрузка…</p>}
+          {report ? (
+            <ReportView report={report} />
+          ) : (
+            <p className="consensus-empty">Краткий обзор появится после обработки записи.</p>
+          )}
         </section>
       )}
     </main>

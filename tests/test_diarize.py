@@ -1,4 +1,12 @@
-from sten.diarize import Turn, assign_speakers, merge_turns, speaker_display_names
+from pathlib import Path
+
+from sten.diarize import (
+    Turn,
+    assign_speakers,
+    load_waveform,
+    merge_turns,
+    speaker_display_names,
+)
 from sten.transcribe import Segment, transcript_text
 
 
@@ -52,3 +60,18 @@ def test_transcript_text_with_speakers():
 def test_transcript_text_without_speakers_unchanged():
     segs = [Segment(0.0, 1.0, "Привет."), Segment(1.0, 2.0, "Как дела?")]
     assert transcript_text(segs) == "Привет.\nКак дела?"
+
+
+def test_load_waveform_reads_pcm_wav(tmp_path: Path):
+    import wave
+
+    path = tmp_path / "clip.wav"
+    with wave.open(str(path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(16000)
+        handle.writeframes(b"\x00\x00" * 16000)
+
+    audio = load_waveform(path)
+    assert audio["sample_rate"] == 16000
+    assert tuple(audio["waveform"].shape) == (1, 16000)
