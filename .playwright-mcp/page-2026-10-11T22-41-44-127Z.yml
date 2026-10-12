@@ -1,0 +1,29 @@
+- generic [ref=e14]:
+  - link "К содержимому" [ref=e15] [cursor=pointer]:
+    - /url: "#sten-main"
+  - button "Меню" [ref=e16] [cursor=pointer]
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Проверка сдвига вкладок" [level=1] [ref=e24]
+        - button "Переименовать встречу" [ref=e25] [cursor=pointer]
+      - generic [ref=e28]:
+        - button "Копировать обзор" [ref=e269] [cursor=pointer]
+        - button "Скачать" [ref=e34] [cursor=pointer]
+    - tablist "Материалы встречи" [ref=e38]:
+      - tab "Спикеры" [ref=e39] [cursor=pointer]
+      - tab "Расшифровка" [ref=e40] [cursor=pointer]
+      - tab "Краткий обзор" [active] [selected] [ref=e41] [cursor=pointer]
+    - tabpanel "Краткий обзор совещания" [ref=e270]:
+      - generic [ref=e271]:
+        - generic [ref=e272]:
+          - heading "Название встречи" [level=2] [ref=e273]
+          - paragraph [ref=e274]: Проверка
+        - generic [ref=e275]:
+          - heading "Участники" [level=2] [ref=e276]
+          - list [ref=e277]:
+            - listitem [ref=e278]: Анна
+            - listitem [ref=e279]: Борис
+        - generic [ref=e280]:
+          - heading "Краткое резюме" [level=2] [ref=e281]
+          - paragraph [ref=e282]: Короткий обзор.

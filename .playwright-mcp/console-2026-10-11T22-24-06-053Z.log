@@ -1,0 +1,8 @@
+[     100ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8877/sten/api/auth/me:0
+[     178ms] [WARNING] [.WebGL-0x2844000b0200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels @ http://127.0.0.1:8877/sten/m/91/consensus:0
+[     182ms] [WARNING] [.WebGL-0x2844000b0200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels @ http://127.0.0.1:8877/sten/m/91/consensus:0
+[     186ms] [WARNING] [.WebGL-0x2844000b0200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels @ http://127.0.0.1:8877/sten/m/91/consensus:0
+[     201ms] [WARNING] [.WebGL-0x2844000b0200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat) @ http://127.0.0.1:8877/sten/m/91/consensus:0
+[   17459ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8877/sten/api/meetings/91/audio:0
+[   23688ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8877/sten/api/meetings/91/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%201:0
+[   23689ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8877/sten/api/meetings/91/speakers/sample?name=%D0%A1%D0%BF%D0%B8%D0%BA%D0%B5%D1%80%202:0

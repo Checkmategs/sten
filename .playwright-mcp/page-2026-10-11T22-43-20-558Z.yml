@@ -1,0 +1,30 @@
+- generic [ref=e14]:
+  - link "К содержимому" [ref=e15] [cursor=pointer]:
+    - /url: "#sten-main"
+  - button "Меню" [ref=e16] [cursor=pointer]
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Планирование контента, тестирование оборудования и архитектура системы RADHA" [level=1] [ref=e283]
+        - button "Переименовать встречу" [ref=e25] [cursor=pointer]
+      - generic [ref=e28]:
+        - button "Копировать" [disabled] [ref=e284]
+        - button "Скачать" [ref=e34] [cursor=pointer]
+    - tablist "Материалы встречи" [ref=e38]:
+      - tab "Спикеры" [active] [selected] [ref=e39] [cursor=pointer]
+      - tab "Расшифровка" [ref=e40] [cursor=pointer]
+      - tab "Краткий обзор" [ref=e41] [cursor=pointer]
+    - tabpanel "Спикеры" [ref=e285]:
+      - list [ref=e287]:
+        - listitem [ref=e288]:
+          - generic [ref=e289]:
+            - button "Прослушать фрагмент голоса, Анна" [ref=e291] [cursor=pointer]
+            - generic [ref=e294]: Анна20
+          - button "Переименовать Анна" [ref=e295] [cursor=pointer]: Переименовать
+          - button "Объединить Анна" [ref=e297] [cursor=pointer]: Объединить
+        - listitem [ref=e298]:
+          - generic [ref=e299]:
+            - button "Прослушать фрагмент голоса, Борис" [ref=e301] [cursor=pointer]
+            - generic [ref=e304]: Борис20
+          - button "Переименовать Борис" [ref=e305] [cursor=pointer]: Переименовать
+          - button "Объединить Борис" [ref=e307] [cursor=pointer]: Объединить

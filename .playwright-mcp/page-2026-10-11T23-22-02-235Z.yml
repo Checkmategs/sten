@@ -1,0 +1,14 @@
+- generic [ref=f3e12]:
+  - link "К содержимому" [ref=f3e13] [cursor=pointer]:
+    - /url: "#sten-main"
+  - button "Меню" [ref=f3e14] [cursor=pointer]
+  - main [ref=f3e19]:
+    - generic [ref=f3e20]:
+      - heading "Sten зафикс" [level=1] [ref=f3e21]
+      - paragraph [ref=f3e25]: начните запись или загрузите файл
+      - generic [ref=f3e26]:
+        - button "Начать запись" [ref=f3e27] [cursor=pointer]
+        - generic [ref=f3e28] [cursor=pointer]:
+          - text: Загрузить файл
+          - button "Загрузить файл" [ref=f3e29]
+      - paragraph [ref=f3e30]: "Аудио или видео: webm из Телемоста, mp4, mkv, mov, m4a, mp3 и другие форматы"

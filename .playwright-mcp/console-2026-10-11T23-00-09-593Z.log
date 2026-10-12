@@ -1,0 +1,6 @@
+[      33ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8771/favicon.ico:0
+[     223ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8771/favicon.ico:0
+[    5261ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8766/favicon.ico:0
+[    5324ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8766/favicon.ico:0
+[   50081ms] Failed to execute 'write' on 'Document': Identifier 'mode' has already been declared
+[   73347ms] Failed to execute 'write' on 'Document': Identifier 'audio' has already been declared

@@ -1,0 +1,29 @@
+- generic [ref=f1e14]:
+  - link "К содержимому" [ref=f1e15] [cursor=pointer]:
+    - /url: "#sten-main"
+  - button "Меню" [ref=f1e16] [cursor=pointer]
+  - main [ref=f1e21]:
+    - generic [ref=f1e22]:
+      - generic [ref=f1e23]:
+        - heading "Проверка объединения" [level=1] [ref=f1e24]
+        - button "Переименовать встречу" [ref=f1e25] [cursor=pointer]
+      - generic [ref=f1e28]:
+        - button "Копировать текст записи" [ref=f1e29] [cursor=pointer]
+        - button "Скачать" [ref=f1e34] [cursor=pointer]
+    - tablist "Материалы встречи" [ref=f1e38]:
+      - tab "Спикеры" [ref=f1e39] [cursor=pointer]
+      - tab "Расшифровка" [selected] [ref=f1e40] [cursor=pointer]
+      - tab "Краткий обзор" [ref=f1e41] [cursor=pointer]
+    - tabpanel "Полный текст записи" [ref=f1e42]:
+      - generic [ref=f1e43]:
+        - article [ref=f1e44]:
+          - generic [ref=f1e45]:
+            - button "00:00" [ref=f1e46] [cursor=pointer]
+            - heading "Спикер 1" [level=4] [ref=f1e47]
+          - paragraph [ref=f1e48]: Первая реплика
+        - article [ref=f1e49]:
+          - generic [ref=f1e50]:
+            - button "00:01" [ref=f1e51] [cursor=pointer]
+            - heading "Спикер 2" [level=4] [ref=f1e52]
+          - paragraph [ref=f1e53]: Вторая реплика
+      - paragraph [ref=f1e54]: Аудио недоступно.

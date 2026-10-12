@@ -17,7 +17,9 @@ from sten.audio import guess_audio_ext
 from sten.api.processing import (
     Conflict,
     adopt_brief_title,
+    dialogue_busy,
     is_busy,
+    start_dialogue,
     start_diarize,
     start_processing,
     start_resummarize,
@@ -52,6 +54,11 @@ class RewriteBody(BaseModel):
 
 
 class RenameSpeakerBody(BaseModel):
+    source: str = Field(min_length=1, max_length=80)
+    target: str = Field(min_length=1, max_length=80)
+
+
+class MergeSpeakerBody(BaseModel):
     source: str = Field(min_length=1, max_length=80)
     target: str = Field(min_length=1, max_length=80)
 
@@ -324,10 +331,61 @@ def _attachment(content: bytes, media_type: str, filename: str) -> Response:
     )
 
 
+def _load_dialogue_payload(meeting_id: int) -> dict:
+    from sten.dialogue import dialogue_from_dict, render_dialogue_text
+
+    empty = {
+        "available": False,
+        "busy": dialogue_busy(meeting_id),
+        "error": None,
+        "questions": [],
+        "text": "",
+    }
+    path = _meeting_dir(meeting_id) / "summary.json"
+    if not path.is_file():
+        return empty
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return empty
+    error = data.get("dialogue_error")
+    if not isinstance(error, str) or not error.strip():
+        error = None
+    raw = data.get("dialogue")
+    if not isinstance(raw, dict):
+        empty["error"] = error
+        return empty
+    dialogue = dialogue_from_dict(raw)
+    return {
+        "available": True,
+        "busy": dialogue_busy(meeting_id),
+        "error": error,
+        "questions": dialogue.to_dict()["questions"],
+        "text": render_dialogue_text(dialogue),
+    }
+
+
 @router.get("/meetings/{meeting_id}/report")
 def get_report(meeting_id: int, user: dict = Depends(require_user)) -> dict:
     _require_meeting(meeting_id, user)
     return _load_report_payload(meeting_id)
+
+
+@router.get("/meetings/{meeting_id}/dialogue")
+def get_dialogue(meeting_id: int, user: dict = Depends(require_user)) -> dict:
+    _require_meeting(meeting_id, user)
+    return _load_dialogue_payload(meeting_id)
+
+
+@router.post("/meetings/{meeting_id}/dialogue")
+def create_dialogue(meeting_id: int, user: dict = Depends(require_user)) -> dict:
+    """Собрать карту вопросов по уже готовой расшифровке."""
+    _require_meeting(meeting_id, user)
+    try:
+        start_dialogue(meeting_id)
+    except Conflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return _load_dialogue_payload(meeting_id)
 
 
 @router.get("/meetings/{meeting_id}/audio")
@@ -346,14 +404,14 @@ def get_speaker_sample(
     meeting_id: int,
     name: str = Query(min_length=1, max_length=80),
     user: dict = Depends(require_user),
-) -> Response:
+) -> FileResponse:
     import wave
 
-    from sten.speakers import SpeakerNotFound, SpeakerSampleMissing, render_speaker_sample
+    from sten.speakers import SpeakerNotFound, SpeakerSampleMissing, speaker_sample_file
 
     _require_meeting(meeting_id, user)
     try:
-        payload = render_speaker_sample(_meeting_dir(meeting_id), name)
+        path = speaker_sample_file(_meeting_dir(meeting_id), name)
     except SpeakerNotFound as exc:
         raise HTTPException(status_code=404, detail="speaker not found") from exc
     except SpeakerSampleMissing as exc:
@@ -362,7 +420,7 @@ def get_speaker_sample(
         raise HTTPException(status_code=404, detail="no audio") from exc
     except wave.Error as exc:
         raise HTTPException(status_code=404, detail="no audio") from exc
-    return Response(content=payload, media_type="audio/wav")
+    return FileResponse(path, media_type="audio/mpeg")
 
 
 @router.get("/meetings/{meeting_id}/speakers")
@@ -386,6 +444,26 @@ def rename_meeting_speaker(
         raise HTTPException(status_code=409, detail="meeting is processing")
     try:
         speakers = rename_speaker(_meeting_dir(meeting_id), body.source, body.target)
+    except SpeakerNotFound as exc:
+        raise HTTPException(status_code=404, detail="speaker not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"speakers": speakers, "report": _load_report_payload(meeting_id)}
+
+
+@router.post("/meetings/{meeting_id}/speakers/merge")
+def merge_meeting_speakers(
+    meeting_id: int,
+    body: MergeSpeakerBody,
+    user: dict = Depends(require_user),
+) -> dict:
+    from sten.speakers import SpeakerNotFound, merge_speakers
+
+    _require_meeting(meeting_id, user)
+    if is_busy(meeting_id):
+        raise HTTPException(status_code=409, detail="meeting is processing")
+    try:
+        speakers = merge_speakers(_meeting_dir(meeting_id), body.source, body.target)
     except SpeakerNotFound as exc:
         raise HTTPException(status_code=404, detail="speaker not found") from exc
     except ValueError as exc:

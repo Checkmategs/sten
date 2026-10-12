@@ -1,4 +1,5 @@
 import io
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -469,6 +470,57 @@ def test_automatic_title_becomes_brief_title(client, tmp_path):
     assert listed.json()[0]["title"] == "Тема обзора"
 
 
+def test_dialogue_reads_stored_map(client, tmp_path):
+    mid = _ready_meeting(client, tmp_path)
+    path = tmp_path / "data" / "meetings" / str(mid) / "summary.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["dialogue"] = {
+        "questions": [
+            {
+                "text": "Где показывать?",
+                "ideas": [
+                    {
+                        "text": "Виджет",
+                        "status": "adopted",
+                        "author": "Спикер 1",
+                        "pros": [{"text": "Видно сразу", "author": ""}],
+                        "cons": [],
+                    }
+                ],
+            }
+        ]
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    dialogue = client.get(f"/api/meetings/{mid}/dialogue")
+    assert dialogue.status_code == 200
+    body = dialogue.json()
+    assert body["available"] is True
+    assert body["busy"] is False
+    assert body["questions"][0]["text"] == "Где показывать?"
+    assert "? Где показывать?" in body["text"]
+    assert "принята" in body["text"]
+
+
+def test_dialogue_missing_until_built(client, tmp_path):
+    mid = _ready_meeting(client, tmp_path)
+    dialogue = client.get(f"/api/meetings/{mid}/dialogue")
+    assert dialogue.status_code == 200
+    assert dialogue.json()["available"] is False
+    assert dialogue.json()["questions"] == []
+
+
+def test_post_dialogue_starts_build(client, tmp_path, monkeypatch):
+    started: list[int] = []
+    monkeypatch.setattr(
+        "sten.api.meetings.start_dialogue", lambda meeting_id: started.append(meeting_id)
+    )
+    mid = _ready_meeting(client, tmp_path)
+    response = client.post(f"/api/meetings/{mid}/dialogue")
+    assert response.status_code == 200
+    assert started == [mid]
+
+
 def test_report_audio_and_export(client, tmp_path):
     mid = _ready_meeting(client, tmp_path)
     report = client.get(f"/api/meetings/{mid}/report")
@@ -491,7 +543,7 @@ def test_report_audio_and_export(client, tmp_path):
     assert docx.content[:2] == b"PK"
 
 
-def test_speaker_sample_is_wav(client, tmp_path, monkeypatch):
+def test_speaker_sample_is_stored_mp3(client, tmp_path, monkeypatch):
     monkeypatch.setattr(
         "sten.speakers.segment_single_voice",
         lambda path, ranges: ranges,
@@ -515,12 +567,60 @@ def test_speaker_sample_is_wav(client, tmp_path, monkeypatch):
         f"/api/meetings/{mid}/speakers/sample", params={"name": "Спикер 1"}
     )
     assert sample.status_code == 200
-    assert sample.headers["content-type"].startswith("audio/wav")
-    with wave.open(io.BytesIO(sample.content), "rb") as handle:
-        assert handle.getnframes() == 10 * rate
+    assert sample.headers["content-type"].startswith("audio/mpeg")
+    assert sample.headers["accept-ranges"] == "bytes"
+    assert sample.content[:3] == b"ID3" or sample.content[0] == 0xFF
+    stored = list((out / "samples").glob("*.mp3"))
+    assert len(stored) == 1
+    assert stored[0].read_bytes() == sample.content
+
+    again = client.get(
+        f"/api/meetings/{mid}/speakers/sample", params={"name": "Спикер 1"}
+    )
+    assert again.status_code == 200
+    assert again.content == sample.content
+
+    # Replay asks for the start of the same file.
+    head = client.get(
+        f"/api/meetings/{mid}/speakers/sample",
+        params={"name": "Спикер 1"},
+        headers={"Range": "bytes=0-15"},
+    )
+    assert head.status_code == 206
+    assert head.content == sample.content[:16]
 
     missing = client.get(
         f"/api/meetings/{mid}/speakers/sample", params={"name": "Никто"}
+    )
+    assert missing.status_code == 404
+
+
+def test_speaker_merge_keeps_target_name(client, tmp_path):
+    mid = _ready_meeting(client, tmp_path)
+    out = tmp_path / "data" / "meetings" / str(mid)
+    (out / "transcript.json").write_text(
+        "["
+        '{"start":0,"end":1.2,"text":"Привет","speaker":"Спикер 1"},'
+        '{"start":1.2,"end":2.4,"text":"Да","speaker":"Анна"}'
+        "]",
+        encoding="utf-8",
+    )
+    (out / "speakers.json").write_text(
+        '{"speakers": ["Спикер 1", "Анна"]}', encoding="utf-8"
+    )
+
+    merged = client.post(
+        f"/api/meetings/{mid}/speakers/merge",
+        json={"source": "Спикер 1", "target": "Анна"},
+    )
+    assert merged.status_code == 200
+    assert merged.json()["speakers"] == [{"name": "Анна", "count": 2}]
+    assert merged.json()["report"]["participants"][0]["speaker"] == "Анна"
+    assert "Анна: Привет" in (out / "transcript.txt").read_text(encoding="utf-8")
+
+    missing = client.post(
+        f"/api/meetings/{mid}/speakers/merge",
+        json={"source": "Анна", "target": "Никто"},
     )
     assert missing.status_code == 404
 

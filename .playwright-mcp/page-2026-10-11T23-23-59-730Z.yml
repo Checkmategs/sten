@@ -1,0 +1,62 @@
+- generic [ref=f7e3]:
+  - link "К содержимому" [ref=f7e4] [cursor=pointer]:
+    - /url: "#sten-main"
+  - button "Меню" [ref=f7e5] [cursor=pointer]
+  - main [ref=f7e10]:
+    - generic [ref=f7e12]:
+      - generic [ref=f7e13]:
+        - heading "Планёрка" [level=1] [ref=f7e14]
+        - button "Переименовать встречу" [ref=f7e15] [cursor=pointer]
+      - generic [ref=f7e18]:
+        - button "Копировать карту" [ref=f7e36] [cursor=pointer]
+        - button "Скачать" [ref=f7e24] [cursor=pointer]
+    - tablist "Материалы встречи" [ref=f7e28]:
+      - tab "Спикеры" [ref=f7e29] [cursor=pointer]
+      - tab "Расшифровка" [ref=f7e30] [cursor=pointer]
+      - tab "Краткий обзор" [ref=f7e31] [cursor=pointer]
+      - tab "Карта диалога" [active] [selected] [ref=f7e32] [cursor=pointer]
+    - tabpanel "Карта диалога" [ref=f7e37]:
+      - generic [ref=f7e38]:
+        - paragraph [ref=f7e39]: Вопрос слева, идеи справа. Плюс — довод за, минус — довод против.
+        - generic [ref=f7e40]:
+          - article [ref=f7e41]:
+            - generic [ref=f7e42]:
+              - generic [aria-hidden] [ref=f7e43]: "?"
+              - paragraph [ref=f7e44]: Где показывать расход?
+            - generic [ref=f7e45]:
+              - generic [ref=f7e46]:
+                - generic [ref=f7e47]:
+                  - paragraph [ref=f7e48]: Отдельный виджет
+                  - generic [ref=f7e49]: принята
+                - paragraph [ref=f7e50]: Сергей
+                - list [ref=f7e51]:
+                  - listitem [ref=f7e52]:
+                    - generic [aria-hidden] [ref=f7e53]: +
+                    - generic [ref=f7e54]:
+                      - text: Видно сразу
+                      - generic [ref=f7e55]: · Анна
+                  - listitem [ref=f7e56]:
+                    - generic [aria-hidden] [ref=f7e57]: −
+                    - generic [ref=f7e58]: Занимает место
+              - generic [ref=f7e59]:
+                - generic [ref=f7e60]:
+                  - paragraph [ref=f7e61]: Строка в отчёте
+                  - generic [ref=f7e62]: отклонена
+                - list [ref=f7e63]:
+                  - listitem [ref=f7e64]:
+                    - generic [aria-hidden] [ref=f7e65]: −
+                    - generic [ref=f7e66]: Легко пропустить
+          - article [ref=f7e67]:
+            - generic [ref=f7e68]:
+              - generic [aria-hidden] [ref=f7e69]: "?"
+              - paragraph [ref=f7e70]: Когда выпустить макет?
+            - generic [ref=f7e72]:
+              - generic [ref=f7e73]:
+                - paragraph [ref=f7e74]: На следующей неделе
+                - generic [ref=f7e75]: открыта
+              - paragraph [ref=f7e76]: Анна
+              - list [ref=f7e77]:
+                - listitem [ref=f7e78]:
+                  - generic [aria-hidden] [ref=f7e79]: +
+                  - generic [ref=f7e80]: Успеем показать
+        - button "Собрать заново" [ref=f7e81] [cursor=pointer]

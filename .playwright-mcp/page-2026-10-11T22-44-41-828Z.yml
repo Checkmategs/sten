@@ -1,0 +1,219 @@
+- generic [ref=e14]:
+  - link "К содержимому" [ref=e15] [cursor=pointer]:
+    - /url: "#sten-main"
+  - button "Меню" [ref=e16] [cursor=pointer]
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Планирование контента, тестирование оборудования и архитектура системы RADHA" [level=1] [ref=e283]
+        - button "Переименовать встречу" [ref=e25] [cursor=pointer]
+      - generic [ref=e28]:
+        - button "Копировать текст записи" [ref=e308] [cursor=pointer]
+        - button "Скачать" [ref=e34] [cursor=pointer]
+    - tablist "Материалы встречи" [ref=e38]:
+      - tab "Спикеры" [ref=e39] [cursor=pointer]
+      - tab "Расшифровка" [active] [selected] [ref=e40] [cursor=pointer]
+      - tab "Краткий обзор" [ref=e41] [cursor=pointer]
+    - tabpanel "Полный текст записи" [ref=e309]:
+      - generic [ref=e310]:
+        - article [ref=e311]:
+          - generic [ref=e312]:
+            - button "00:00" [ref=e313] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e314]
+          - paragraph [ref=e315]: Реплика номер 1 про планирование и проверку интерфейса.
+        - article [ref=e316]:
+          - generic [ref=e317]:
+            - button "00:02" [ref=e318] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e319]
+          - paragraph [ref=e320]: Реплика номер 2 про планирование и проверку интерфейса.
+        - article [ref=e321]:
+          - generic [ref=e322]:
+            - button "00:04" [ref=e323] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e324]
+          - paragraph [ref=e325]: Реплика номер 3 про планирование и проверку интерфейса.
+        - article [ref=e326]:
+          - generic [ref=e327]:
+            - button "00:06" [ref=e328] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e329]
+          - paragraph [ref=e330]: Реплика номер 4 про планирование и проверку интерфейса.
+        - article [ref=e331]:
+          - generic [ref=e332]:
+            - button "00:08" [ref=e333] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e334]
+          - paragraph [ref=e335]: Реплика номер 5 про планирование и проверку интерфейса.
+        - article [ref=e336]:
+          - generic [ref=e337]:
+            - button "00:10" [ref=e338] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e339]
+          - paragraph [ref=e340]: Реплика номер 6 про планирование и проверку интерфейса.
+        - article [ref=e341]:
+          - generic [ref=e342]:
+            - button "00:12" [ref=e343] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e344]
+          - paragraph [ref=e345]: Реплика номер 7 про планирование и проверку интерфейса.
+        - article [ref=e346]:
+          - generic [ref=e347]:
+            - button "00:14" [ref=e348] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e349]
+          - paragraph [ref=e350]: Реплика номер 8 про планирование и проверку интерфейса.
+        - article [ref=e351]:
+          - generic [ref=e352]:
+            - button "00:16" [ref=e353] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e354]
+          - paragraph [ref=e355]: Реплика номер 9 про планирование и проверку интерфейса.
+        - article [ref=e356]:
+          - generic [ref=e357]:
+            - button "00:18" [ref=e358] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e359]
+          - paragraph [ref=e360]: Реплика номер 10 про планирование и проверку интерфейса.
+        - article [ref=e361]:
+          - generic [ref=e362]:
+            - button "00:20" [ref=e363] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e364]
+          - paragraph [ref=e365]: Реплика номер 11 про планирование и проверку интерфейса.
+        - article [ref=e366]:
+          - generic [ref=e367]:
+            - button "00:22" [ref=e368] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e369]
+          - paragraph [ref=e370]: Реплика номер 12 про планирование и проверку интерфейса.
+        - article [ref=e371]:
+          - generic [ref=e372]:
+            - button "00:24" [ref=e373] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e374]
+          - paragraph [ref=e375]: Реплика номер 13 про планирование и проверку интерфейса.
+        - article [ref=e376]:
+          - generic [ref=e377]:
+            - button "00:26" [ref=e378] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e379]
+          - paragraph [ref=e380]: Реплика номер 14 про планирование и проверку интерфейса.
+        - article [ref=e381]:
+          - generic [ref=e382]:
+            - button "00:28" [ref=e383] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e384]
+          - paragraph [ref=e385]: Реплика номер 15 про планирование и проверку интерфейса.
+        - article [ref=e386]:
+          - generic [ref=e387]:
+            - button "00:30" [ref=e388] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e389]
+          - paragraph [ref=e390]: Реплика номер 16 про планирование и проверку интерфейса.
+        - article [ref=e391]:
+          - generic [ref=e392]:
+            - button "00:32" [ref=e393] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e394]
+          - paragraph [ref=e395]: Реплика номер 17 про планирование и проверку интерфейса.
+        - article [ref=e396]:
+          - generic [ref=e397]:
+            - button "00:34" [ref=e398] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e399]
+          - paragraph [ref=e400]: Реплика номер 18 про планирование и проверку интерфейса.
+        - article [ref=e401]:
+          - generic [ref=e402]:
+            - button "00:36" [ref=e403] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e404]
+          - paragraph [ref=e405]: Реплика номер 19 про планирование и проверку интерфейса.
+        - article [ref=e406]:
+          - generic [ref=e407]:
+            - button "00:38" [ref=e408] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e409]
+          - paragraph [ref=e410]: Реплика номер 20 про планирование и проверку интерфейса.
+        - article [ref=e411]:
+          - generic [ref=e412]:
+            - button "00:40" [ref=e413] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e414]
+          - paragraph [ref=e415]: Реплика номер 21 про планирование и проверку интерфейса.
+        - article [ref=e416]:
+          - generic [ref=e417]:
+            - button "00:42" [ref=e418] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e419]
+          - paragraph [ref=e420]: Реплика номер 22 про планирование и проверку интерфейса.
+        - article [ref=e421]:
+          - generic [ref=e422]:
+            - button "00:44" [ref=e423] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e424]
+          - paragraph [ref=e425]: Реплика номер 23 про планирование и проверку интерфейса.
+        - article [ref=e426]:
+          - generic [ref=e427]:
+            - button "00:46" [ref=e428] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e429]
+          - paragraph [ref=e430]: Реплика номер 24 про планирование и проверку интерфейса.
+        - article [ref=e431]:
+          - generic [ref=e432]:
+            - button "00:48" [ref=e433] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e434]
+          - paragraph [ref=e435]: Реплика номер 25 про планирование и проверку интерфейса.
+        - article [ref=e436]:
+          - generic [ref=e437]:
+            - button "00:50" [ref=e438] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e439]
+          - paragraph [ref=e440]: Реплика номер 26 про планирование и проверку интерфейса.
+        - article [ref=e441]:
+          - generic [ref=e442]:
+            - button "00:52" [ref=e443] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e444]
+          - paragraph [ref=e445]: Реплика номер 27 про планирование и проверку интерфейса.
+        - article [ref=e446]:
+          - generic [ref=e447]:
+            - button "00:54" [ref=e448] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e449]
+          - paragraph [ref=e450]: Реплика номер 28 про планирование и проверку интерфейса.
+        - article [ref=e451]:
+          - generic [ref=e452]:
+            - button "00:56" [ref=e453] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e454]
+          - paragraph [ref=e455]: Реплика номер 29 про планирование и проверку интерфейса.
+        - article [ref=e456]:
+          - generic [ref=e457]:
+            - button "00:58" [ref=e458] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e459]
+          - paragraph [ref=e460]: Реплика номер 30 про планирование и проверку интерфейса.
+        - article [ref=e461]:
+          - generic [ref=e462]:
+            - button "01:00" [ref=e463] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e464]
+          - paragraph [ref=e465]: Реплика номер 31 про планирование и проверку интерфейса.
+        - article [ref=e466]:
+          - generic [ref=e467]:
+            - button "01:02" [ref=e468] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e469]
+          - paragraph [ref=e470]: Реплика номер 32 про планирование и проверку интерфейса.
+        - article [ref=e471]:
+          - generic [ref=e472]:
+            - button "01:04" [ref=e473] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e474]
+          - paragraph [ref=e475]: Реплика номер 33 про планирование и проверку интерфейса.
+        - article [ref=e476]:
+          - generic [ref=e477]:
+            - button "01:06" [ref=e478] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e479]
+          - paragraph [ref=e480]: Реплика номер 34 про планирование и проверку интерфейса.
+        - article [ref=e481]:
+          - generic [ref=e482]:
+            - button "01:08" [ref=e483] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e484]
+          - paragraph [ref=e485]: Реплика номер 35 про планирование и проверку интерфейса.
+        - article [ref=e486]:
+          - generic [ref=e487]:
+            - button "01:10" [ref=e488] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e489]
+          - paragraph [ref=e490]: Реплика номер 36 про планирование и проверку интерфейса.
+        - article [ref=e491]:
+          - generic [ref=e492]:
+            - button "01:12" [ref=e493] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e494]
+          - paragraph [ref=e495]: Реплика номер 37 про планирование и проверку интерфейса.
+        - article [ref=e496]:
+          - generic [ref=e497]:
+            - button "01:14" [ref=e498] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e499]
+          - paragraph [ref=e500]: Реплика номер 38 про планирование и проверку интерфейса.
+        - article [ref=e501]:
+          - generic [ref=e502]:
+            - button "01:16" [ref=e503] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e504]
+          - paragraph [ref=e505]: Реплика номер 39 про планирование и проверку интерфейса.
+        - article [ref=e506]:
+          - generic [ref=e507]:
+            - button "01:18" [ref=e508] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e509]
+          - paragraph [ref=e510]: Реплика номер 40 про планирование и проверку интерфейса.
+      - paragraph [ref=e511]: Аудио недоступно.

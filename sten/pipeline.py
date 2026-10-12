@@ -9,6 +9,7 @@ from pathlib import Path
 
 from sten.audio import to_wav16k
 from sten.config import DATA_DIR, WHISPER_MODEL
+from sten.dialogue import DialogueMap, build_dialogue
 from sten.items import SummaryItem, category_label
 from sten.report import MeetingReport, build_report, render_report_text, report_to_items
 from sten.speakers import seed_speakers
@@ -98,11 +99,21 @@ def _start_diarize(wav: Path, device_index: int | None, box: dict) -> threading.
     return thread
 
 
+def _build_dialogue(segments: list[Segment]) -> DialogueMap | None:
+    """The map is extra. A model failure keeps the brief."""
+    try:
+        return build_dialogue(segments)
+    except Exception as exc:
+        print(f"    карта диалога не собралась: {exc}")
+        return None
+
+
 def write_outputs(
     out_dir: Path,
     segments: list[Segment],
     items: list[SummaryItem],
     report: MeetingReport | None = None,
+    dialogue: DialogueMap | None = None,
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "transcript.txt").write_text(transcript_text(segments), encoding="utf-8")
@@ -113,6 +124,8 @@ def write_outputs(
     summary: dict = {"items": [asdict(i) for i in items]}
     if report is not None:
         summary["report"] = report.to_dict()
+    if dialogue is not None:
+        summary["dialogue"] = dialogue.to_dict()
     (out_dir / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -240,7 +253,10 @@ def run(
     finally:
         stop_report.set()
         report_creeper.join(timeout=2)
-    write_outputs(out_dir, segments, report_to_items(meeting_report), meeting_report)
+    dialogue = _build_dialogue(segments)
+    write_outputs(
+        out_dir, segments, report_to_items(meeting_report), meeting_report, dialogue
+    )
     seed_speakers(out_dir, segments)
     report(4, "Обзор совещания…", 1.0)
     print(f"Готово за {time.time() - t0:.0f} c. Результаты: {out_dir}")

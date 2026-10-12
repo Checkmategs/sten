@@ -93,6 +93,80 @@ def load_items_from_output(out_dir: Path) -> list[tuple[str, str, str]]:
     return items
 
 
+def start_dialogue(meeting_id: int) -> None:
+    """Build an IBIS map from the transcript without changing the meeting status."""
+    global _busy_meeting_id
+    with _lock:
+        if _busy_meeting_id is not None:
+            raise Conflict(f"busy with meeting {_busy_meeting_id}")
+        _busy_meeting_id = meeting_id
+
+    thread = threading.Thread(
+        target=_dialogue_meeting, args=(meeting_id,), daemon=True
+    )
+    thread.start()
+
+
+def dialogue_busy(meeting_id: int) -> bool:
+    return is_busy(meeting_id)
+
+
+def build_stored_dialogue(meeting_id: int) -> None:
+    from sten.dialogue import build_dialogue, save_dialogue, save_dialogue_error
+    from sten.transcribe import Segment
+
+    out_dir = Path(db.DATA_DIR) / "meetings" / str(meeting_id)
+    transcript = out_dir / "transcript.json"
+    if not transcript.is_file():
+        save_dialogue_error(out_dir, "Нет транскрипта — сначала нужна обработка записи")
+        return
+    try:
+        raw = json.loads(transcript.read_text(encoding="utf-8"))
+        segments = [
+            Segment(
+                float(item["start"]),
+                float(item["end"]),
+                str(item["text"]),
+                item.get("speaker"),
+            )
+            for item in raw
+        ]
+        save_dialogue(out_dir, build_dialogue(segments))
+    except Exception as exc:
+        save_dialogue_error(out_dir, str(exc))
+
+
+def _dialogue_meeting(meeting_id: int) -> None:
+    global _busy_meeting_id
+    try:
+        build_stored_dialogue(meeting_id)
+    finally:
+        with _lock:
+            if _busy_meeting_id == meeting_id:
+                _busy_meeting_id = None
+
+
+def _kept_dialogue(out_dir: Path, segments: list) -> object:
+    """Rebuild the map, and keep the previous one when the model fails."""
+    from sten.dialogue import build_dialogue, dialogue_from_dict
+
+    try:
+        return build_dialogue(segments)
+    except Exception as exc:
+        print(f"    карта диалога не собралась: {exc}")
+    path = out_dir / "summary.json"
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    raw = data.get("dialogue")
+    if not isinstance(raw, dict):
+        return None
+    return dialogue_from_dict(raw)
+
+
 def start_resummarize(meeting_id: int) -> None:
     """Re-run summarization from existing transcript (no whisper). Raises Conflict."""
     global _busy_meeting_id
@@ -207,7 +281,8 @@ def _resummarize_meeting(meeting_id: int) -> None:
                 "Обзор встречи пустой после пересборки. Проверьте транскрипт."
             )
         items = report_to_items(meeting_report)
-        pipeline.write_outputs(out_dir, segments, items, meeting_report)
+        dialogue = _kept_dialogue(out_dir, segments)
+        pipeline.write_outputs(out_dir, segments, items, meeting_report, dialogue)
         db.replace_items(
             meeting_id, [(i.text, i.category, i.theme) for i in items]
         )

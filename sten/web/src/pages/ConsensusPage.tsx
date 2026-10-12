@@ -4,6 +4,7 @@ import {
   api,
   apiDetail,
   type ExportFormat,
+  type DialogueMap,
   type MeetingDetail,
   type MeetingMaterials,
   type MeetingReport,
@@ -11,6 +12,7 @@ import {
   type TranscriptResponse,
   type TranscriptTurn,
 } from '../api'
+import { DialogueMapView } from './DialogueMap'
 
 type TranscriptView = {
   text: string
@@ -19,7 +21,7 @@ type TranscriptView = {
   error: string | null
 }
 
-type MeetingTab = 'transcript' | 'report' | 'speakers'
+type MeetingTab = 'transcript' | 'report' | 'speakers' | 'dialogue'
 
 function transcriptView(res: TranscriptResponse): TranscriptView {
   return {
@@ -128,6 +130,22 @@ function PencilIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+    </svg>
+  )
+}
+
+function PlayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8.5 6.2v11.6L18 12 8.5 6.2z" />
+    </svg>
+  )
+}
+
+function PauseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 6h3.2v12H7zM13.8 6H17v12h-3.2z" />
     </svg>
   )
 }
@@ -335,23 +353,33 @@ function ReportView({ report }: { report: MeetingReport }) {
   )
 }
 
+function playWasInterrupted(err: unknown): boolean {
+  return (
+    err instanceof DOMException &&
+    (err.name === 'AbortError' || err.name === 'NotAllowedError')
+  )
+}
+
 function SpeakerClip({ name, src }: { name: string; src: string }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
   const [failed, setFailed] = useState(false)
-  const [length, setLength] = useState('10 с')
 
   const toggle = () => {
     const audio = audioRef.current
     if (!audio) return
-    if (!audio.paused) {
+    if (!audio.paused && !audio.ended) {
       audio.pause()
       return
     }
     document.querySelectorAll('audio.speaker-clip').forEach((node) => {
       if (node !== audio) (node as HTMLAudioElement).pause()
     })
-    void audio.play().catch(() => setFailed(true))
+    if (audio.ended) audio.currentTime = 0
+    void audio.play().catch((err: unknown) => {
+      if (playWasInterrupted(err)) return
+      setFailed(true)
+    })
   }
 
   if (failed) {
@@ -366,24 +394,20 @@ function SpeakerClip({ name, src }: { name: string; src: string }) {
         aria-label={playing ? `Пауза, ${name}` : `Прослушать фрагмент голоса, ${name}`}
         onClick={toggle}
       >
-        {playing ? 'Пауза' : 'Прослушать'}
+        {playing ? <PauseIcon /> : <PlayIcon />}
       </button>
-      <span className="speaker-sample-length">{length}</span>
       <audio
         ref={audioRef}
         className="speaker-clip"
-        preload="metadata"
+        preload="none"
         src={src}
-        onLoadedMetadata={(event) => {
-          const seconds = event.currentTarget.duration
-          if (Number.isFinite(seconds) && seconds > 0) {
-            setLength(`${Math.max(1, Math.round(seconds))} с`)
-          }
-        }}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
-        onError={() => setFailed(true)}
+        onError={() => {
+          if (audioRef.current?.error?.code === MediaError.MEDIA_ERR_ABORTED) return
+          setFailed(true)
+        }}
       />
     </div>
   )
@@ -395,19 +419,38 @@ function SpeakersPanel({
   busy,
   error,
   onRename,
-  onDelete,
+  onMerge,
 }: {
   meetingId: number
   speakers: SpeakerRow[]
   busy: boolean
   error: string | null
   onRename: (source: string, target: string) => Promise<void>
-  onDelete: (name: string) => Promise<void>
+  onMerge: (source: string, target: string) => Promise<void>
 }) {
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
+  const [merging, setMerging] = useState<string | null>(null)
+  const mergeRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!merging) return
+    const close = (event: MouseEvent) => {
+      if (!mergeRef.current?.contains(event.target as Node)) setMerging(null)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMerging(null)
+    }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [merging])
 
   const startEdit = (name: string) => {
+    setMerging(null)
     setEditing(name)
     setDraft(name)
   }
@@ -436,6 +479,12 @@ function SpeakersPanel({
         {speakers.map((speaker) => (
           <li key={speaker.name} className="speaker-row">
             <div className="speaker-main">
+              {speaker.count > 0 ? (
+                <SpeakerClip
+                  name={speaker.name}
+                  src={api.speakerSampleUrl(meetingId, speaker.name)}
+                />
+              ) : null}
               {editing === speaker.name ? (
                 <input
                   className="speaker-input"
@@ -463,12 +512,6 @@ function SpeakersPanel({
                   <span className="speaker-count">{speaker.count}</span>
                 </span>
               )}
-              {speaker.count > 0 ? (
-                <SpeakerClip
-                  name={speaker.name}
-                  src={api.speakerSampleUrl(meetingId, speaker.name)}
-                />
-              ) : null}
             </div>
             <button
               type="button"
@@ -480,16 +523,52 @@ function SpeakersPanel({
             >
               Переименовать
             </button>
-            <button
-              type="button"
-              className="speaker-action"
-              aria-label={`Удалить ${speaker.name}`}
-              disabled={busy}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => void onDelete(speaker.name)}
+            <div
+              className="speaker-merge"
+              ref={merging === speaker.name ? mergeRef : undefined}
             >
-              Удалить
-            </button>
+              <button
+                type="button"
+                className="speaker-action"
+                aria-label={`Объединить ${speaker.name}`}
+                aria-expanded={merging === speaker.name}
+                aria-haspopup="menu"
+                disabled={busy || speakers.length < 2}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setEditing(null)
+                  setMerging((current) => (current === speaker.name ? null : speaker.name))
+                }}
+              >
+                Объединить
+              </button>
+              {merging === speaker.name ? (
+                <div
+                  className="speaker-merge-list"
+                  role="menu"
+                  aria-label={`С кем объединить ${speaker.name}`}
+                >
+                  <p className="speaker-merge-hint">Объединить с</p>
+                  {speakers
+                    .filter((other) => other.name !== speaker.name)
+                    .map((other) => (
+                      <button
+                        key={other.name}
+                        type="button"
+                        role="menuitem"
+                        disabled={busy}
+                        onClick={() => {
+                          void onMerge(speaker.name, other.name)
+                            .then(() => setMerging(null))
+                            .catch(() => {})
+                        }}
+                      >
+                        {other.name}
+                      </button>
+                    ))}
+                </div>
+              ) : null}
+            </div>
           </li>
         ))}
       </ul>
@@ -518,6 +597,9 @@ export function ConsensusPage() {
   const [transcriptLoading, setTranscriptLoading] = useState(false)
   const [transcriptError, setTranscriptError] = useState<string | null>(null)
   const [report, setReport] = useState<MeetingReport | null>(seeded?.report ?? null)
+  const [dialogue, setDialogue] = useState<DialogueMap | null>(null)
+  const [dialogueNote, setDialogueNote] = useState<string | null>(null)
+  const [dialoguePoll, setDialoguePoll] = useState(0)
   const [speakers, setSpeakers] = useState<SpeakerRow[]>(seeded?.speakers ?? [])
   const [speakerBusy, setSpeakerBusy] = useState(false)
   const [speakerError, setSpeakerError] = useState<string | null>(
@@ -599,6 +681,31 @@ export function ConsensusPage() {
   }, [meeting?.status, meetingId, navigate])
 
   useEffect(() => {
+    if (tab !== 'dialogue' || !Number.isFinite(meetingId) || meetingId <= 0) return
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+
+    const load = async () => {
+      try {
+        const map = await api.getDialogue(meetingId)
+        if (cancelled) return
+        setDialogue(map)
+        setDialogueNote(null)
+        if (map.busy) timer = setTimeout(() => void load(), 2000)
+      } catch (err) {
+        if (cancelled) return
+        setDialogueNote(apiDetail(err instanceof Error ? err.message : String(err)))
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
+  }, [tab, meetingId, dialoguePoll])
+
+  useEffect(() => {
     return () => {
       if (copiedResetRef.current) clearTimeout(copiedResetRef.current)
     }
@@ -620,7 +727,29 @@ export function ConsensusPage() {
   }
 
   const copyText =
-    tab === 'report' ? report?.text || '' : tab === 'transcript' ? transcript?.text || '' : ''
+    tab === 'report'
+      ? report?.text || ''
+      : tab === 'transcript'
+        ? transcript?.text || ''
+        : tab === 'dialogue'
+          ? dialogue?.text || ''
+          : ''
+
+  const handleBuildDialogue = async () => {
+    setDialogueNote(null)
+    setDialogue((current) =>
+      current
+        ? { ...current, busy: true, error: null }
+        : { available: false, busy: true, error: null, questions: [], text: '' },
+    )
+    try {
+      setDialogue(await api.buildDialogue(meetingId))
+      setDialoguePoll((value) => value + 1)
+    } catch (err) {
+      setDialogue((current) => (current ? { ...current, busy: false } : current))
+      setDialogueNote(apiDetail(err instanceof Error ? err.message : String(err)))
+    }
+  }
 
   const handleCopy = async () => {
     if (!copyText) return
@@ -660,14 +789,18 @@ export function ConsensusPage() {
     }
   }
 
-  const handleDeleteSpeaker = async (name: string) => {
+  const handleMergeSpeaker = async (source: string, target: string) => {
     setSpeakerBusy(true)
     setSpeakerError(null)
     try {
-      const res = await api.deleteSpeaker(meetingId, name)
+      const res = await api.mergeSpeakers(meetingId, source, target)
       setSpeakers(res.speakers)
+      setReport(res.report)
+      await loadTranscript()
     } catch (err) {
-      setSpeakerError(apiDetail(err instanceof Error ? err.message : String(err)))
+      const message = apiDetail(err instanceof Error ? err.message : String(err))
+      setSpeakerError(message)
+      throw err
     } finally {
       setSpeakerBusy(false)
     }
@@ -710,7 +843,11 @@ export function ConsensusPage() {
         ? copied
           ? 'Скопировано'
           : 'Копировать текст записи'
-        : 'Копировать'
+        : tab === 'dialogue'
+          ? copied
+            ? 'Скопировано'
+            : 'Копировать карту'
+          : 'Копировать'
 
   return (
     <main className="consensus-page">
@@ -801,6 +938,15 @@ export function ConsensusPage() {
         >
           Краткий обзор
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'dialogue'}
+          className="meeting-tab"
+          onClick={() => setTab('dialogue')}
+        >
+          Карта диалога
+        </button>
       </div>
 
       {tab === 'transcript' ? (
@@ -851,6 +997,15 @@ export function ConsensusPage() {
             <p className="consensus-empty">Краткий обзор появится после обработки записи.</p>
           )}
         </section>
+      ) : tab === 'dialogue' ? (
+        <section role="tabpanel" aria-label="Карта диалога">
+          {dialogueNote ? (
+            <p className="consensus-error" role="alert">
+              {dialogueNote}
+            </p>
+          ) : null}
+          <DialogueMapView dialogue={dialogue} onBuild={() => void handleBuildDialogue()} />
+        </section>
       ) : (
         <section role="tabpanel" aria-label="Спикеры">
           <SpeakersPanel
@@ -859,7 +1014,7 @@ export function ConsensusPage() {
             busy={speakerBusy}
             error={speakerError}
             onRename={handleRenameSpeaker}
-            onDelete={handleDeleteSpeaker}
+            onMerge={handleMergeSpeaker}
           />
         </section>
       )}

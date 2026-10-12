@@ -1,0 +1,29 @@
+- generic [ref=f1e14]:
+  - link "К содержимому" [ref=f1e15] [cursor=pointer]:
+    - /url: "#sten-main"
+  - button "Меню" [ref=f1e16] [cursor=pointer]
+  - main [ref=f1e21]:
+    - generic [ref=f1e22]:
+      - generic [ref=f1e23]:
+        - heading "Проверка объединения" [level=1] [ref=f1e24]
+        - button "Переименовать встречу" [ref=f1e25] [cursor=pointer]
+      - generic [ref=f1e28]:
+        - button "Копировать обзор" [ref=f1e85] [cursor=pointer]
+        - button "Скачать" [ref=f1e34] [cursor=pointer]
+    - tablist "Материалы встречи" [ref=f1e38]:
+      - tab "Спикеры" [ref=f1e39] [cursor=pointer]
+      - tab "Расшифровка" [ref=f1e40] [cursor=pointer]
+      - tab "Краткий обзор" [active] [selected] [ref=f1e41] [cursor=pointer]
+    - tabpanel "Краткий обзор совещания" [ref=f1e86]:
+      - generic [ref=f1e87]:
+        - generic [ref=f1e88]:
+          - heading "Название встречи" [level=2] [ref=f1e89]
+          - paragraph [ref=f1e90]: Проверка
+        - generic [ref=f1e91]:
+          - heading "Участники" [level=2] [ref=f1e92]
+          - list [ref=f1e93]:
+            - listitem [ref=f1e94]: Спикер 2
+        - generic [ref=f1e95]:
+          - heading "Принятые решения" [level=2] [ref=f1e96]
+          - list [ref=f1e97]:
+            - listitem [ref=f1e98]: "Начать — инициатор: Спикер 2"

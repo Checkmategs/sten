@@ -1,0 +1,32 @@
+- generic [ref=f7e3]:
+  - link "К содержимому" [ref=f7e4] [cursor=pointer]:
+    - /url: "#sten-main"
+  - button "Меню" [ref=f7e5] [cursor=pointer]
+  - main [ref=f7e10]:
+    - generic [ref=f7e12]:
+      - generic [ref=f7e13]:
+        - heading "Планёрка" [level=1] [ref=f7e14]
+        - button "Переименовать встречу" [ref=f7e15] [cursor=pointer]
+      - generic [ref=f7e18]:
+        - button "Копировать обзор" [ref=f7e82] [cursor=pointer]
+        - button "Скачать" [ref=f7e24] [cursor=pointer]
+    - tablist "Материалы встречи" [ref=f7e28]:
+      - tab "Спикеры" [ref=f7e29] [cursor=pointer]
+      - tab "Расшифровка" [ref=f7e30] [cursor=pointer]
+      - tab "Краткий обзор" [active] [selected] [ref=f7e31] [cursor=pointer]
+      - tab "Карта диалога" [ref=f7e32] [cursor=pointer]
+    - tabpanel "Краткий обзор совещания" [ref=f7e83]:
+      - generic [ref=f7e84]:
+        - generic [ref=f7e85]:
+          - heading "Название встречи" [level=2] [ref=f7e86]
+          - paragraph [ref=f7e87]: Где показывать расход
+        - generic [ref=f7e88]:
+          - heading "Участники" [level=2] [ref=f7e89]
+          - list [ref=f7e90]:
+            - listitem [ref=f7e91]: Сергей
+        - generic [ref=f7e92]:
+          - heading "Краткое резюме" [level=2] [ref=f7e93]
+          - paragraph [ref=f7e94]: Выбрали виджет.
+        - generic [ref=f7e95]:
+          - heading "Итог встречи" [level=2] [ref=f7e96]
+          - paragraph [ref=f7e97]: Макет.

@@ -1,0 +1,30 @@
+- generic [ref=e14]:
+  - link "К содержимому" [ref=e15] [cursor=pointer]:
+    - /url: "#sten-main"
+  - button "Меню" [ref=e16] [cursor=pointer]
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Проверка строки спикера" [level=1] [ref=e24]
+        - button "Переименовать встречу" [ref=e25] [cursor=pointer]
+      - generic [ref=e28]:
+        - button "Копировать" [disabled] [ref=e55]
+        - button "Скачать" [ref=e34] [cursor=pointer]
+    - tablist "Материалы встречи" [ref=e38]:
+      - tab "Спикеры" [active] [selected] [ref=e39] [cursor=pointer]
+      - tab "Расшифровка" [ref=e40] [cursor=pointer]
+      - tab "Краткий обзор" [ref=e41] [cursor=pointer]
+    - tabpanel "Спикеры" [ref=e56]:
+      - list [ref=e58]:
+        - listitem [ref=e59]:
+          - generic [ref=e60]:
+            - button "Прослушать фрагмент голоса, Анна" [ref=e62] [cursor=pointer]
+            - generic [ref=e65]: Анна1
+          - button "Переименовать Анна" [ref=e66] [cursor=pointer]: Переименовать
+          - button "Объединить Анна" [ref=e68] [cursor=pointer]: Объединить
+        - listitem [ref=e69]:
+          - generic [ref=e70]:
+            - button "Прослушать фрагмент голоса, Борис" [ref=e72] [cursor=pointer]
+            - generic [ref=e75]: Борис1
+          - button "Переименовать Борис" [ref=e76] [cursor=pointer]: Переименовать
+          - button "Объединить Борис" [ref=e78] [cursor=pointer]: Объединить

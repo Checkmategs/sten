@@ -1,0 +1,28 @@
+- generic [ref=e14]:
+  - link "К содержимому" [ref=e15] [cursor=pointer]:
+    - /url: "#sten-main"
+  - button "Меню" [ref=e16] [cursor=pointer]
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Проверка строки спикера" [level=1] [ref=e24]
+        - button "Переименовать встречу" [ref=e25] [cursor=pointer]
+      - generic [ref=e28]:
+        - button "Копировать текст записи" [ref=e29] [cursor=pointer]
+        - button "Скачать" [ref=e34] [cursor=pointer]
+    - tablist "Материалы встречи" [ref=e38]:
+      - tab "Спикеры" [ref=e39] [cursor=pointer]
+      - tab "Расшифровка" [selected] [ref=e40] [cursor=pointer]
+      - tab "Краткий обзор" [ref=e41] [cursor=pointer]
+    - tabpanel "Полный текст записи" [ref=e42]:
+      - generic [ref=e43]:
+        - article [ref=e44]:
+          - generic [ref=e45]:
+            - button "00:00" [ref=e46] [cursor=pointer]
+            - heading "Анна" [level=4] [ref=e47]
+          - paragraph [ref=e48]: Первая реплика
+        - article [ref=e49]:
+          - generic [ref=e50]:
+            - button "00:02" [ref=e51] [cursor=pointer]
+            - heading "Борис" [level=4] [ref=e52]
+          - paragraph [ref=e53]: Вторая реплика

@@ -1,0 +1,6 @@
+[      93ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8877/sten/api/auth/me:0
+[     172ms] [WARNING] WebGL: CONTEXT_LOST_WEBGL: loseContext: context lost @ http://127.0.0.1:8877/sten/m/92/consensus:0
+[   18693ms] [WARNING] [.WebGL-0x344000b6200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels @ http://127.0.0.1:8877/sten/m/92/consensus:0
+[   18698ms] [WARNING] [.WebGL-0x344000b6200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels @ http://127.0.0.1:8877/sten/m/92/consensus:0
+[   18702ms] [WARNING] [.WebGL-0x344000b6200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels @ http://127.0.0.1:8877/sten/m/92/consensus:0
+[   18729ms] [WARNING] [.WebGL-0x344000b6200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat) @ http://127.0.0.1:8877/sten/m/92/consensus:0

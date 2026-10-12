@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import threading
@@ -19,6 +20,8 @@ _SINGLE_VOICE_THRESHOLD = 0.5
 _SPAN_CACHE_VERSION = 1
 _SEGMENTATION = None
 _CACHE_LOCK = threading.Lock()
+# pyannote Inference is one shared object and is not safe to call twice at once.
+_INFERENCE_LOCK = threading.Lock()
 
 SPEAKER_IN_USE = (
     "Этот спикер ещё используется в расшифровке. "
@@ -306,11 +309,18 @@ def segment_single_voice(
     path: Path, ranges: list[tuple[float, float]]
 ) -> list[tuple[float, float]]:
     """Subranges of ``ranges`` where segmentation hears exactly one person."""
-    import torch
-
     usable = [(start, end) for start, end in ranges if end - start >= 0.4]
     if not usable:
         return []
+    with _INFERENCE_LOCK:
+        return _segment_single_voice(path, usable)
+
+
+def _segment_single_voice(
+    path: Path, usable: list[tuple[float, float]]
+) -> list[tuple[float, float]]:
+    import torch
+
     inference = _segmentation_inference()
     spans: list[tuple[float, float]] = []
     with wave.open(str(path), "rb") as src:
@@ -470,6 +480,56 @@ def render_speaker_sample(out_dir: Path, speaker: str) -> bytes:
     return clip_wav(wav_path, spans)
 
 
+def _sample_stamp(out_dir: Path) -> str | None:
+    wav_path = out_dir / "audio.wav"
+    transcript = out_dir / "transcript.json"
+    try:
+        return f"{wav_path.stat().st_mtime_ns} {transcript.stat().st_mtime_ns}"
+    except OSError:
+        return None
+
+
+def speaker_sample_file(out_dir: Path, speaker: str) -> Path:
+    """Mp3 clip for this speaker, cut once and reused until the recording changes."""
+    name = speaker.strip()
+    digest = hashlib.sha256(name.encode()).hexdigest()[:16]
+    folder = out_dir / "samples"
+    dest = folder / f"{digest}.mp3"
+    stamp_path = folder / "stamp"
+    stamp = _sample_stamp(out_dir)
+    with _CACHE_LOCK:
+        if stamp and _stored_sample(stamp_path, stamp, dest):
+            return dest
+    payload = render_speaker_sample(out_dir, name)
+    stamp = _sample_stamp(out_dir)
+    if stamp is None:
+        raise FileNotFoundError(out_dir / "audio.wav")
+    from sten.audio import write_mp3
+
+    with _CACHE_LOCK:
+        if _stored_sample(stamp_path, stamp, dest):
+            return dest
+        folder.mkdir(parents=True, exist_ok=True)
+        current = stamp_path.read_text(encoding="utf-8") if stamp_path.is_file() else ""
+        if current != stamp:
+            for old in folder.glob("*.mp3"):
+                old.unlink(missing_ok=True)
+            stamp_path.write_text(stamp, encoding="utf-8")
+        if not dest.is_file() or dest.stat().st_size == 0:
+            write_mp3(payload, dest)
+        return dest
+
+
+def _stored_sample(stamp_path: Path, stamp: str, dest: Path) -> bool:
+    if not stamp_path.is_file() or not dest.is_file() or dest.stat().st_size == 0:
+        return False
+    try:
+        saved = stamp_path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return saved == stamp
+
+
 def list_speakers(out_dir: Path, segments: list[Segment] | None = None) -> list[dict]:
     if segments is None:
         segments = load_segments(out_dir)
@@ -484,27 +544,43 @@ def list_speakers(out_dir: Path, segments: list[Segment] | None = None) -> list[
     return [{"name": name, "count": counts.get(name, 0)} for name in registry]
 
 
-def _retarget_report(out_dir: Path, old: str, new: str) -> None:
+def _retarget_report(out_dir: Path, old: str, new: str, *, collapse: bool = False) -> None:
+    from sten.dialogue import retarget_dialogue
+
     path = out_dir / "summary.json"
     if not path.exists():
         return
     data = json.loads(path.read_text(encoding="utf-8"))
     report = data.get("report")
     if not isinstance(report, dict):
+        if retarget_dialogue(data, old, new):
+            path.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
         return
 
     def swap(value: object) -> object:
         return new if value == old else value
 
-    for person in report.get("participants") or []:
-        if isinstance(person, dict):
-            person["speaker"] = swap(person.get("speaker"))
+    participants = report.get("participants") or []
+    has_target = collapse and any(
+        isinstance(person, dict) and person.get("speaker") == new for person in participants
+    )
+    kept: list = []
+    for person in participants:
+        if isinstance(person, dict) and person.get("speaker") == old:
+            if has_target:
+                continue
+            person["speaker"] = new
+        kept.append(person)
+    report["participants"] = kept
     for decision in report.get("decisions") or []:
         if isinstance(decision, dict):
             decision["initiator"] = swap(decision.get("initiator"))
     for task in report.get("tasks") or []:
         if isinstance(task, dict):
             task["assignee"] = swap(task.get("assignee"))
+    retarget_dialogue(data, old, new)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -541,6 +617,38 @@ def rename_speaker(out_dir: Path, old: str, new: str) -> list[dict]:
     save_segments(out_dir, segments)
     write_registry(out_dir, registry)
     _retarget_report(out_dir, source, target)
+    return list_speakers(out_dir, segments)
+
+
+def merge_speakers(out_dir: Path, source: str, target: str) -> list[dict]:
+    """Move every turn from source onto an existing speaker and drop source.
+
+    The name that remains is ``target``.
+    """
+    src = source.strip()
+    dst = target.strip()
+    if not src or not dst:
+        raise ValueError("empty speaker name")
+    if src == dst:
+        raise ValueError("speaker is already that name")
+    segments = load_segments(out_dir)
+    counts = speaker_counts(segments)
+    registry = read_registry(out_dir)
+    if registry is None:
+        registry = list(counts)
+    if src not in registry and counts.get(src, 0) == 0:
+        raise SpeakerNotFound(src)
+    if dst not in registry and counts.get(dst, 0) == 0:
+        raise SpeakerNotFound(dst)
+    for segment in segments:
+        if (segment.speaker or "").strip() == src:
+            segment.speaker = dst
+    registry = [name for name in registry if name != src]
+    if dst not in registry:
+        registry.append(dst)
+    save_segments(out_dir, segments)
+    write_registry(out_dir, registry)
+    _retarget_report(out_dir, src, dst, collapse=True)
     return list_speakers(out_dir, segments)
 
 

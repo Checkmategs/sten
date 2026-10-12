@@ -18,12 +18,20 @@ from sten.transcribe import Segment
 
 @pytest.fixture(autouse=True)
 def _stub_meeting_report(monkeypatch):
+    from sten.dialogue import DialogueMap
+
     def fake(segments, on_progress=None):
         if on_progress is not None:
             on_progress(1.0)
         return MeetingReport()
 
+    def fake_dialogue(segments, on_progress=None):
+        if on_progress is not None:
+            on_progress(1.0)
+        return DialogueMap()
+
     monkeypatch.setattr("sten.pipeline.build_report", fake)
+    monkeypatch.setattr("sten.pipeline.build_dialogue", fake_dialogue)
 
 
 def test_overall_percent_maps_stages():

@@ -1,0 +1,6 @@
+- generic [ref=f5e3]:
+  - link "К содержимому" [ref=f5e4] [cursor=pointer]:
+    - /url: "#sten-main"
+  - button "Меню" [ref=f5e5] [cursor=pointer]
+  - main [ref=f5e10]:
+    - paragraph [ref=f5e11]: Загрузка…

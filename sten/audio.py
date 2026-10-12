@@ -112,3 +112,28 @@ def to_wav16k(src: Path, dst: Path) -> Path:
     if write_to != dst:
         write_to.replace(dst)
     return dst
+
+
+def write_mp3(wav_bytes: bytes, dest: Path) -> None:
+    """Write an mp3 file from wav bytes. Replaces ``dest`` only when encode succeeds."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        proc = subprocess.run(
+            [
+                "ffmpeg", "-nostdin", "-y",
+                "-f", "wav", "-i", "pipe:0",
+                "-vn", "-c:a", "libmp3lame", "-q:a", "4",
+                "-f", "mp3", "pipe:1",
+            ],
+            input=wav_bytes,
+            capture_output=True,
+            timeout=120,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("ffmpeg timed out writing mp3") from exc
+    if proc.returncode != 0 or not proc.stdout:
+        detail = proc.stderr.decode("utf-8", errors="replace")[-500:]
+        raise RuntimeError(f"ffmpeg failed: {detail}")
+    tmp = dest.with_name(dest.stem + ".part")
+    tmp.write_bytes(proc.stdout)
+    tmp.replace(dest)

@@ -1,0 +1,8 @@
+- main [ref=e6]:
+  - generic [ref=e7]:
+    - heading "Welcome to Sten" [level=1] [ref=e8]
+    - generic [ref=e9]:
+      - textbox "Имя пользователя" [ref=e10]
+      - textbox "Пароль" [ref=e11]
+      - button "Войти" [ref=e12] [cursor=pointer]
+      - button "Регистрация" [ref=e13] [cursor=pointer]

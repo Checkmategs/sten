@@ -9,9 +9,11 @@ from sten.speakers import (
     SPEAKER_IN_USE,
     SpeakerInUse,
     delete_speaker,
+    merge_speakers,
     rename_speaker,
     render_speaker_sample,
     single_voice_spans,
+    speaker_sample_file,
     speaker_voice_spans,
 )
 from sten.transcribe import Segment
@@ -62,6 +64,35 @@ def test_rename_replaces_every_turn_and_report_labels(tmp_path: Path):
     assert report["participants"][0]["speaker"] == "Сергей"
     assert report["decisions"][0]["initiator"] == "Сергей"
     assert report["tasks"][0]["assignee"] == "Сергей"
+
+
+def test_rename_updates_dialogue_authors(tmp_path: Path):
+    out = _meeting(tmp_path)
+    summary = json.loads((out / "summary.json").read_text(encoding="utf-8"))
+    summary["dialogue"] = {
+        "questions": [
+            {
+                "text": "Как назвать?",
+                "ideas": [
+                    {
+                        "text": "Коротко",
+                        "status": "open",
+                        "author": "Спикер 1",
+                        "pros": [{"text": "Проще", "author": "Спикер 1"}],
+                        "cons": [],
+                    }
+                ],
+            }
+        ]
+    }
+    (out / "summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False), encoding="utf-8"
+    )
+    rename_speaker(out, "Спикер 1", "Сергей")
+    dialogue = json.loads((out / "summary.json").read_text(encoding="utf-8"))["dialogue"]
+    idea = dialogue["questions"][0]["ideas"][0]
+    assert idea["author"] == "Сергей"
+    assert idea["pros"][0]["author"] == "Сергей"
 
 
 def test_voice_spans_take_the_longest_clean_stretch():
@@ -231,6 +262,65 @@ def test_loud_spike_does_not_drop_the_longer_quiet_phrase(tmp_path: Path, monkey
         duration = handle.getnframes() / handle.getframerate()
     assert duration > 5
     assert heard.count(800) > heard.count(3000)
+
+
+def test_speaker_sample_mp3_is_reused_until_the_recording_changes(tmp_path: Path, monkeypatch):
+    _keep_ranges(monkeypatch)
+    import wave
+
+    out = _meeting(tmp_path)
+    rate = 8000
+    with wave.open(str(out / "audio.wav"), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(b"\x01\x00" * (12 * rate))
+
+    path = speaker_sample_file(out, "Спикер 1")
+    assert path.suffix == ".mp3"
+    original = path.read_bytes()
+    assert original[:3] == b"ID3" or original[0] == 0xFF
+    path.write_bytes(b"stored-mp3")
+
+    assert speaker_sample_file(out, "Спикер 1").read_bytes() == b"stored-mp3"
+
+    import os
+
+    os.utime(out / "transcript.json", ns=(1_000_000_000, 1_000_000_000))
+    fresh = speaker_sample_file(out, "Спикер 1").read_bytes()
+    assert fresh != b"stored-mp3"
+    assert fresh[:3] == b"ID3" or fresh[0] == 0xFF
+
+
+def test_merge_speakers_keeps_the_chosen_name(tmp_path: Path):
+    out = _meeting(tmp_path)
+    summary = json.loads((out / "summary.json").read_text(encoding="utf-8"))
+    summary["report"]["participants"].append(
+        {"speaker": "Спикер 2", "role": "ведущий", "name": "Анна"}
+    )
+    (out / "summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False), encoding="utf-8"
+    )
+
+    rows = merge_speakers(out, "Спикер 1", "Спикер 2")
+    assert rows == [{"name": "Спикер 2", "count": 2}]
+    text = (out / "transcript.txt").read_text(encoding="utf-8")
+    assert "Спикер 2: Привет" in text
+    assert "Спикер 1" not in text
+    report = json.loads((out / "summary.json").read_text(encoding="utf-8"))["report"]
+    assert report["participants"] == [
+        {"speaker": "Спикер 2", "role": "ведущий", "name": "Анна"}
+    ]
+    assert report["decisions"][0]["initiator"] == "Спикер 2"
+    assert report["tasks"][0]["assignee"] == "Спикер 2"
+
+
+def test_merge_speakers_renames_participant_when_target_has_none(tmp_path: Path):
+    out = _meeting(tmp_path)
+    rows = merge_speakers(out, "Спикер 1", "Спикер 2")
+    assert [row["name"] for row in rows] == ["Спикер 2"]
+    report = json.loads((out / "summary.json").read_text(encoding="utf-8"))["report"]
+    assert report["participants"] == [{"speaker": "Спикер 2", "role": "", "name": ""}]
 
 
 def test_merge_keeps_unused_speaker_until_delete(tmp_path: Path):

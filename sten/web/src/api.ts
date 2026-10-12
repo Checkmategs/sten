@@ -137,6 +137,35 @@ export interface MeetingReport {
   text: string
 }
 
+export type DialogueIdeaStatus = 'adopted' | 'open' | 'rejected'
+
+export interface DialogueArgument {
+  text: string
+  author: string
+}
+
+export interface DialogueIdea {
+  text: string
+  status: DialogueIdeaStatus
+  author: string
+  pros: DialogueArgument[]
+  cons: DialogueArgument[]
+}
+
+export interface DialogueQuestion {
+  text: string
+  ideas: DialogueIdea[]
+}
+
+/** IBIS map: questions, the ideas offered, and arguments for and against. */
+export interface DialogueMap {
+  available: boolean
+  busy: boolean
+  error: string | null
+  questions: DialogueQuestion[]
+  text: string
+}
+
 export interface SpeakerRow {
   name: string
   count: number
@@ -259,6 +288,14 @@ export const api = {
     return request(`/api/meetings/${id}/report`)
   },
 
+  getDialogue(id: number): Promise<DialogueMap> {
+    return request(`/api/meetings/${id}/dialogue`)
+  },
+
+  buildDialogue(id: number): Promise<DialogueMap> {
+    return request(`/api/meetings/${id}/dialogue`, { method: 'POST' })
+  },
+
   meetingAudioUrl(id: number): string {
     return `${baseURL}/api/meetings/${id}/audio`
   },
@@ -306,11 +343,15 @@ export const api = {
     })
   },
 
-  deleteSpeaker(id: number, name: string): Promise<{ speakers: SpeakerRow[] }> {
-    return request(`/api/meetings/${id}/speakers/delete`, {
+  mergeSpeakers(
+    id: number,
+    source: string,
+    target: string,
+  ): Promise<{ speakers: SpeakerRow[]; report: MeetingReport }> {
+    return request(`/api/meetings/${id}/speakers/merge`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ source, target }),
     })
   },
 
